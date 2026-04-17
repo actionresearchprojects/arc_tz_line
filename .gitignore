@@ -1,0 +1,31 @@
+# Ignore everything in data/ by default
+data/*
+
+# But track these:
+!data/openmeteo/
+!data/omnisense/
+!data/cycles/
+!data/sensor_snapshot.json
+!data/hist_proj/
+!data/config.json
+!data/loggers.json
+
+# Within cycles/, track everything
+!data/cycles/**
+
+# Within openmeteo/, ignore legacy folder
+data/openmeteo/legacy/
+
+# Within omnisense/, ignore legacy folder
+data/omnisense/legacy/
+
+# Within hist_proj/, track everything
+!data/hist_proj/**
+
+__pycache__/
+*.pyc
+.DS_Store
+.aider*
+CLAUDE.md
+open-meteo-automation-plan.md
+omnisense.com.har
