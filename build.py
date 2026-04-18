@@ -604,6 +604,7 @@ def load_omnisense_csv(path, sensor_filter=None):
 
 
 WEATHER_STATION_SENSOR_ID = "30B40014"
+CO2_SENSOR_ID = "195701C1"
 
 
 def load_weather_station_csv(path):
@@ -700,6 +701,71 @@ def load_weather_station_csv(path):
         out["solar_wm2"].append(rec["solar_wm2"])
         out["precip_total_mm"].append(rec["precip_total_mm"])
         out["precip_rate_mmh"].append(rec["precip_rate_mmh"])
+    return out
+
+
+def load_co2_csv(path):
+    """Parse CO2 sensor block (195701C1) from omnisense CSV.
+    Returns {timestamps: [ms...], co2: [...]} or {} if not found.
+    """
+    with open(path) as f:
+        lines = f.readlines()
+    header_idx = None
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("sensorId") and "co2" in stripped and "temperature" not in stripped:
+            header_idx = i
+            break
+    if header_idx is None:
+        return {}
+    header = lines[header_idx].strip().split(",")
+    if "co2" not in header:
+        return {}
+    end_idx = len(lines)
+    for j in range(header_idx + 1, len(lines)):
+        if "sensor_desc,site_name" in lines[j]:
+            end_idx = j
+            break
+    col = {name: header.index(name) for name in header}
+    date_key = next((k for k in ["read_date", "datetime"] if k in col), None)
+    if not date_key:
+        return {}
+    date_idx = col[date_key]
+    co2_idx = col["co2"]
+
+    def _num(v):
+        try:
+            return float(v)
+        except (ValueError, TypeError):
+            return None
+
+    eat = pytz.timezone("Africa/Dar_es_Salaam")
+    out = {"timestamps": [], "co2": []}
+    for ln in lines[header_idx + 1:end_idx]:
+        s = ln.strip()
+        if not s:
+            continue
+        parts = s.split(",")
+        if len(parts) <= max(date_idx, co2_idx):
+            continue
+        if parts[0].strip() != CO2_SENSOR_ID:
+            continue
+        dt = pd.to_datetime(parts[date_idx], errors="coerce")
+        if pd.isna(dt):
+            continue
+        co2_val = _num(parts[co2_idx])
+        if dt.tzinfo is None:
+            dt = eat.localize(dt)
+        ms = int(dt.timestamp() * 1000)
+        out["timestamps"].append(ms)
+        out["co2"].append(co2_val)
+
+    if not out["timestamps"]:
+        return {}
+
+    pairs = sorted(zip(out["timestamps"], out["co2"]))
+    out["timestamps"] = [p[0] for p in pairs]
+    out["co2"] = [p[1] for p in pairs]
     return out
 
 
@@ -1196,6 +1262,7 @@ input[type=date] { font-size: 12px; padding: 3px 5px; border: 1px solid #ccc; bo
 #dl-spinner { display:none; width:16px; height:16px; border:2px solid rgba(40,167,69,0.3); border-top-color:#28a745; border-radius:50%; animation:dlspin 0.7s linear infinite; flex-shrink:0; }
 @keyframes dlspin { to { transform:rotate(360deg); } }
 hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
+.ws-group-label { font-size: 10px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.06em; margin: 6px 0 2px; }
 #dataset-select { font-weight: 600; font-size: 13px; padding: 3px 7px; border: 1px solid #aaa; border-radius: 4px; background: #f5f5f5; }
 #sidebar-toggle { display: none; background: none; border: 1px solid #ccc; border-radius: 4px; padding: 4px 7px; cursor: pointer; font-size: 16px; line-height: 1; color: #555; flex-shrink: 0; }
 #sidebar-toggle:hover { background: #f0f0f0; }
@@ -1318,8 +1385,23 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
             <div id="compare-sets"></div>
           </div>
         </div>
-        <hr class="divider">
       </div>
+      <hr class="divider" id="weather-divider" style="display:none">
+      <div class="section" id="weather-section" style="display:none">
+        <div class="section-title" data-i18n="weatherStation">Weather Station</div>
+        <div class="ws-group-label">Wind</div>
+        <label class="cb-label"><input type="checkbox" class="cb-weather" data-wv="avg_wind_kph"> Avg Wind (kph)</label>
+        <label class="cb-label"><input type="checkbox" class="cb-weather" data-wv="peak_wind_kph"> Peak Wind (kph)</label>
+        <label class="cb-label"><input type="checkbox" class="cb-weather" data-wv="wind_dir"> Wind Direction (&deg;)</label>
+        <div class="ws-group-label">Solar</div>
+        <label class="cb-label"><input type="checkbox" class="cb-weather" data-wv="solar_wm2"> Solar Radiation (W/m&sup2;)</label>
+        <div class="ws-group-label">Rainfall</div>
+        <label class="cb-label"><input type="checkbox" class="cb-weather" data-wv="precip_rate_mmh"> Rainfall Rate (mm/h)</label>
+        <label class="cb-label"><input type="checkbox" class="cb-weather" data-wv="precip_total_mm"> Rainfall Cumulative (mm)</label>
+        <div class="ws-group-label">CO2</div>
+        <label class="cb-label"><input type="checkbox" class="cb-weather" data-wv="co2_ppm"> CO2 (ppm)</label>
+      </div>
+      <hr class="divider">
       <div class="section">
         <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">Loggers<button class="sel-btn" id="reset-line-btn">Reset to default</button></div>
         <div id="logger-checkboxes"></div>
@@ -1329,16 +1411,6 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
         <div class="section-title" data-i18n="metrics">Metrics</div>
         <label class="cb-label"><input type="checkbox" id="cb-temperature" checked> Temperature</label>
         <label class="cb-label" id="humidity-label"><input type="checkbox" id="cb-humidity" checked> Humidity</label>
-      </div>
-      <hr class="divider" id="weather-divider" style="display:none">
-      <div class="section" id="weather-section" style="display:none">
-        <div class="section-title" data-i18n="weatherStation">Weather Station</div>
-        <label class="cb-label"><input type="checkbox" class="cb-weather" data-wv="avg_wind_kph"> Avg Wind (kph)</label>
-        <label class="cb-label"><input type="checkbox" class="cb-weather" data-wv="peak_wind_kph"> Peak Wind (kph)</label>
-        <label class="cb-label"><input type="checkbox" class="cb-weather" data-wv="wind_dir"> Wind Direction (&deg;)</label>
-        <label class="cb-label"><input type="checkbox" class="cb-weather" data-wv="solar_wm2"> Solar Radiation (W/m&sup2;)</label>
-        <label class="cb-label"><input type="checkbox" class="cb-weather" data-wv="precip_rate_mmh"> Rainfall Rate (mm/h)</label>
-        <label class="cb-label"><input type="checkbox" class="cb-weather" data-wv="precip_total_mm"> Rainfall Cumulative (mm)</label>
       </div>
       <hr class="divider">
       <div class="section" id="line-options-section">
@@ -1497,6 +1569,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
 const ALL_DATA = __DATA__;
 const HISTORIC = __HISTORIC__;
 const WEATHER_STATION = __WEATHER_STATION__;
+const CO2_DATA = __CO2_DATA__;
 const FETCH_TIMES = __FETCH_TIMES__;
 const DATA_FRESHNESS = __DATA_FRESHNESS__;
 const LOGO_B64 = '__LOGO_B64__';
@@ -3054,7 +3127,7 @@ function loadDataset(key) {
   const m = dataset().meta;
 
   // Weather station section is only relevant for House 5 (where the station sits)
-  const weatherOK = WEATHER_STATION && WEATHER_STATION.timestamps && WEATHER_STATION.timestamps.length > 0 && key === 'house5';
+  const weatherOK = ((WEATHER_STATION && WEATHER_STATION.timestamps && WEATHER_STATION.timestamps.length > 0) || (CO2_DATA && CO2_DATA.timestamps && CO2_DATA.timestamps.length > 0)) && key === 'house5';
   document.getElementById('weather-section').style.display = weatherOK ? '' : 'none';
   document.getElementById('weather-divider').style.display = weatherOK ? '' : 'none';
   if (!weatherOK) {
@@ -4557,6 +4630,29 @@ function renderLineGraph() {
     state.substratCombine = savedCombine;
   }
 
+  // Pre-scan weather station and CO2 bounds so 'all time' snaps to actual data
+  // even when no loggers are selected. Must happen before the fallback assignment.
+  if (WEATHER_STATION && WEATHER_STATION.timestamps && state.selectedWeather.size > 0 && state.datasetKey === 'house5') {
+    const wts = WEATHER_STATION.timestamps;
+    let wi0 = 0, wi1 = wts.length - 1;
+    while (wi0 < wts.length && wts[wi0] < start) wi0++;
+    while (wi1 >= 0 && wts[wi1] > end) wi1--;
+    if (wi1 >= wi0) {
+      if (wts[wi0] < dataMinMs) dataMinMs = wts[wi0];
+      if (wts[wi1] > dataMaxMs) dataMaxMs = wts[wi1];
+    }
+  }
+  if (CO2_DATA && CO2_DATA.timestamps && state.selectedWeather.has('co2_ppm') && state.datasetKey === 'house5') {
+    const cts = CO2_DATA.timestamps;
+    let ci0 = 0, ci1 = cts.length - 1;
+    while (ci0 < cts.length && cts[ci0] < start) ci0++;
+    while (ci1 >= 0 && cts[ci1] > end) ci1--;
+    if (ci1 >= ci0) {
+      if (cts[ci0] < dataMinMs) dataMinMs = cts[ci0];
+      if (cts[ci1] > dataMaxMs) dataMaxMs = cts[ci1];
+    }
+  }
+
   // Fall back to time filter range if no data traces
   const _lineHasData = dataMinMs !== Infinity;
   if (dataMinMs === Infinity) { dataMinMs = start; dataMaxMs = end; }
@@ -4586,7 +4682,8 @@ function renderLineGraph() {
   // Threshold and season lines span the full visible range
   const rangeMinMs = state.timeMode === 'all' ? dataMinMs : start;
   const rangeMaxMs = state.timeMode === 'all' ? dataMaxMs : end;
-  if (state.showThreshold) {
+  // Only show threshold when temperature metric is active (it's a temperature band)
+  if (state.showThreshold && state.selectedMetrics.has('temperature')) {
     shapes.push({type:'rect', xref:'x', yref:'y',
       x0:toEATString(rangeMinMs), x1:toEATString(rangeMaxMs), y0:32, y1:35,
       fillcolor:'rgba(231,76,60,0.12)', line:{width:0}});
@@ -4647,40 +4744,67 @@ function renderLineGraph() {
     solar_wm2:      {group: 'solar', color: '#f1c40f', label: 'Solar Radiation',    unit: 'W/m\u00b2', axis: 'y4'},
     precip_rate_mmh:{group: 'rain',  color: '#27ae60', label: 'Rainfall Rate',      unit: 'mm/h', axis: 'y5'},
     precip_total_mm:{group: 'rain',  color: '#148d49', label: 'Rainfall Cumulative',unit: 'mm',   axis: 'y5'},
+    co2_ppm:        {group: 'co2',   color: '#e84393', label: 'CO2',               unit: 'ppm',  axis: 'y6'},
   };
   const WEATHER_AXIS_META = {
-    y2: {title: 'Wind (kph)',        range: [0, null]},
-    y3: {title: 'Wind Direction (\u00b0)', range: [0, 360]},
-    y4: {title: 'Solar (W/m\u00b2)', range: [0, null]},
-    y5: {title: 'Rainfall (mm, mm/h)', range: [0, null]},
+    y2: {title: 'kph',   range: [0, null]},
+    y3: {title: '\u00b0', range: [0, 360], fixedTicks: [0, 90, 180, 270, 360]},
+    y4: {title: 'W/m\u00b2', range: [0, null]},
+    y5: {title: 'mm',    range: [0, null]},
+    y6: {title: 'ppm',   range: [0, null]},
   };
   const activeWeatherAxes = new Set();
+  const weatherAxisMax = {};  // axisKey → observed data max for explicit tick display
+
+  function _addWeatherTrace(sliceX, wv, y, def) {
+    activeWeatherAxes.add(def.axis);
+    const validY = y.filter(v => v != null && isFinite(v));
+    if (validY.length) {
+      const mx = Math.max(...validY);
+      if (weatherAxisMax[def.axis] === undefined || mx > weatherAxisMax[def.axis]) weatherAxisMax[def.axis] = mx;
+    }
+    traces.push({
+      x: sliceX, y, type: 'scatter', mode: 'lines',
+      name: def.label + ' <span style="color:#aaa">(' + def.unit + ')</span>',
+      line: {color: def.color, width: 1.4}, opacity: 0.9, connectgaps: false,
+      yaxis: def.axis, meta: {loggerId: 'weather_' + wv},
+      hovertemplate: `${def.label}<br>%{x|%d/%m/%Y %H:%M}<br>%{y:.2f} ${def.unit}<extra></extra>`,
+    });
+  }
+
   if (WEATHER_STATION && WEATHER_STATION.timestamps && state.selectedWeather.size > 0 && state.datasetKey === 'house5') {
-    const ts = WEATHER_STATION.timestamps;
-    // Pre-slice index range [start, end]
+    const wsVars = [...state.selectedWeather].filter(wv => wv !== 'co2_ppm' && WEATHER_DEFS[wv]);
+    if (wsVars.length > 0) {
+      const ts = WEATHER_STATION.timestamps;
+      let i0 = 0, i1 = ts.length - 1;
+      while (i0 < ts.length && ts[i0] < start) i0++;
+      while (i1 >= 0 && ts[i1] > end) i1--;
+      if (i1 >= i0) {
+        const sliceX = [];
+        for (let i = i0; i <= i1; i++) sliceX.push(toEATString(ts[i]));
+        if (ts[i0] < dataMinMs) dataMinMs = ts[i0];
+        if (ts[i1] > dataMaxMs) dataMaxMs = ts[i1];
+        for (const wv of wsVars) {
+          const def = WEATHER_DEFS[wv];
+          const src = WEATHER_STATION[wv];
+          if (!def || !src) continue;
+          _addWeatherTrace(sliceX, wv, src.slice(i0, i1 + 1), def);
+        }
+      }
+    }
+  }
+
+  if (CO2_DATA && CO2_DATA.timestamps && state.selectedWeather.has('co2_ppm') && state.datasetKey === 'house5') {
+    const ts = CO2_DATA.timestamps;
     let i0 = 0, i1 = ts.length - 1;
     while (i0 < ts.length && ts[i0] < start) i0++;
     while (i1 >= 0 && ts[i1] > end) i1--;
     if (i1 >= i0) {
       const sliceX = [];
       for (let i = i0; i <= i1; i++) sliceX.push(toEATString(ts[i]));
-      // Update data bounds so threshold/season lines cover the same range
       if (ts[i0] < dataMinMs) dataMinMs = ts[i0];
       if (ts[i1] > dataMaxMs) dataMaxMs = ts[i1];
-      for (const wv of state.selectedWeather) {
-        const def = WEATHER_DEFS[wv];
-        const src = WEATHER_STATION[wv];
-        if (!def || !src) continue;
-        const y = src.slice(i0, i1 + 1);
-        activeWeatherAxes.add(def.axis);
-        traces.push({
-          x: sliceX, y, type: 'scatter', mode: 'lines',
-          name: def.label + ' <span style="color:#aaa">(' + def.unit + ')</span>',
-          line: {color: def.color, width: 1.4}, opacity: 0.9, connectgaps: false,
-          yaxis: def.axis, meta: {loggerId: 'weather_' + wv},
-          hovertemplate: `${def.label}<br>%{x|%d/%m/%Y %H:%M}<br>%{y:.2f} ${def.unit}<extra></extra>`,
-        });
-      }
+      _addWeatherTrace(sliceX, 'co2_ppm', CO2_DATA.co2.slice(i0, i1 + 1), WEATHER_DEFS['co2_ppm']);
     }
   }
 
@@ -4698,25 +4822,45 @@ function renderLineGraph() {
   const sm = window.innerWidth < 680;
 
   // Compress xaxis domain to make room for stacked right-side weather axes
-  const weatherAxesList = ['y2', 'y3', 'y4', 'y5'].filter(a => activeWeatherAxes.has(a));
-  const axisOffsetStep = 0.06;
+  const weatherAxesList = ['y2', 'y3', 'y4', 'y5', 'y6'].filter(a => activeWeatherAxes.has(a));
+  const axisOffsetStep = 0.05;
   const xRight = weatherAxesList.length > 0 ? Math.max(0.55, 1 - axisOffsetStep * weatherAxesList.length) : 1;
   const extraAxes = {};
   weatherAxesList.forEach((axKey, idx) => {
     const meta = WEATHER_AXIS_META[axKey];
     const position = Math.min(1, xRight + axisOffsetStep * idx);
     const yKey = 'yaxis' + axKey.slice(1);
+    // Compute explicit tick values: always show 0 and max (with a mid-point if range is large)
+    let tickvals, tickmode, axisRange;
+    if (meta.fixedTicks) {
+      tickvals = meta.fixedTicks;
+      tickmode = 'array';
+      axisRange = [meta.fixedTicks[0], meta.fixedTicks[meta.fixedTicks.length - 1]];
+    } else {
+      const rawMax = weatherAxisMax[axKey];
+      if (rawMax != null && rawMax > 0) {
+        const niceMax = rawMax <= 10 ? Math.ceil(rawMax) : rawMax <= 100 ? Math.ceil(rawMax / 5) * 5 : Math.ceil(rawMax / 50) * 50;
+        tickvals = [0, Math.round(niceMax / 2), niceMax];
+        tickmode = 'array';
+        axisRange = [0, niceMax];
+      } else {
+        tickmode = 'auto';
+        axisRange = (meta.range && meta.range[1] != null) ? meta.range : undefined;
+      }
+    }
     extraAxes[yKey] = {
-      title: meta.title,
+      title: {text: meta.title, font: {size: 9}},
       overlaying: 'y',
       side: 'right',
       anchor: idx === 0 ? 'x' : 'free',
       position: position,
       showgrid: false,
-      range: (meta.range && meta.range[1] != null) ? meta.range : undefined,
+      range: axisRange,
       rangemode: 'tozero',
-      titlefont: {size: 11},
-      tickfont: {size: 10},
+      tickfont: {size: 9},
+      tickmode, tickvals,
+      ticks: 'outside', ticklen: 3,
+      showticklabels: true,
     };
   });
 
@@ -7282,8 +7426,9 @@ def main():
         logo_b64 = ""
         logo_aspect = 3.0
 
-    # Load weather station data (Omnisense sensor 30B40014) for the combined line graph
+    # Load weather station data (Omnisense sensor 30B40014) and CO2 sensor (195701C1)
     weather_station = {}
+    co2_data = {}
     os_files_all = sorted(OMNISENSE_DIR.glob("omnisense_*.csv"))
     if not os_files_all:
         os_files_all = sorted(DATA_FOLDER.glob("omnisense_*.csv"))
@@ -7294,15 +7439,23 @@ def main():
                 print(f"  Weather station: {len(weather_station['timestamps']):,} records")
         except Exception as e:
             print(f"  Warning: weather station parse failed: {e}")
+        try:
+            co2_data = load_co2_csv(os_files_all[-1])
+            if co2_data.get("timestamps"):
+                print(f"  CO2 sensor: {len(co2_data['timestamps']):,} records")
+        except Exception as e:
+            print(f"  Warning: CO2 parse failed: {e}")
 
     json_str = json.dumps(all_data, separators=(',', ':'))
     weather_station_str = json.dumps(weather_station, separators=(',', ':')) if weather_station else 'null'
+    co2_data_str = json.dumps(co2_data, separators=(',', ':')) if co2_data else 'null'
     fetch_times_str = json.dumps(fetch_times)
     data_freshness_str = json.dumps(data_freshness)
     html = (HTML_TEMPLATE
             .replace('__DATA__', json_str)
             .replace('__HISTORIC__', historic_str)
             .replace('__WEATHER_STATION__', weather_station_str)
+            .replace('__CO2_DATA__', co2_data_str)
             .replace('__FETCH_TIMES__', fetch_times_str)
             .replace('__DATA_FRESHNESS__', data_freshness_str)
             .replace('__CYCLE_PHASES__', cycle_phases_js)
