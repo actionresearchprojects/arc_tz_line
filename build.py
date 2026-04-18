@@ -687,20 +687,26 @@ def load_weather_station_csv(path):
     parsed.sort(key=lambda x: x["dt"])
     eat = pytz.timezone("Africa/Dar_es_Salaam")
     # Wind QC thresholds (must match arc_tz_weather/modules/common.py)
-    AVG_CEIL  = 60    # km/h: above Beaufort 7, implausible as a 5-min average at this site
-    PEAK_CEIL = 100   # km/h: hard absolute ceiling for peak gust
-    BOUNCE_RATIO    = 8   # peak/avg ratio threshold indicating reed switch bounce
-    BOUNCE_MIN_PEAK = 25  # km/h: minimum peak speed for ratio filter to engage
-    for rec in parsed:
+    AVG_SPIKE_RATIO   = 3.0   # flag avg if > 3x local rolling median
+    AVG_SPIKE_WINDOW  = 12    # rolling window in readings (~1 hour at 5-min intervals)
+    AVG_SPIKE_MIN_KPH = 20    # minimum speed for ratio test to engage
+    PEAK_CEIL         = 100   # km/h: hard absolute ceiling for peak gust
+    BOUNCE_RATIO      = 8     # peak/avg ratio threshold indicating reed switch bounce
+    BOUNCE_MIN_PEAK   = 25    # km/h: minimum peak speed for ratio filter to engage
+
+    # Compute avg spike flags using rolling median before the main loop
+    raw_avg = [rec["avg_wind_kph"] for rec in parsed]
+    avg_series = pd.Series(raw_avg, dtype=float)
+    rolling_med = avg_series.rolling(AVG_SPIKE_WINDOW, center=True, min_periods=3).median()
+    avg_spike_flag = (avg_series > rolling_med * AVG_SPIKE_RATIO) & (avg_series > AVG_SPIKE_MIN_KPH)
+
+    for i, rec in enumerate(parsed):
         dt = rec["dt"]
         if dt.tzinfo is None:
             dt = eat.localize(dt)
         ms = int(dt.timestamp() * 1000)
-        avg  = rec["avg_wind_kph"]
+        avg  = None if avg_spike_flag.iloc[i] else rec["avg_wind_kph"]
         peak = rec["peak_wind_kph"]
-        # avg ceiling
-        if avg is not None and avg > AVG_CEIL:
-            avg = None
         # peak: ratio-based bounce filter + ceiling
         if peak is not None:
             safe_avg = avg if (avg is not None and avg > 0) else None
