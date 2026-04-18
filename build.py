@@ -6918,11 +6918,18 @@ function _doRender() {
   const noDataEl = document.getElementById('substrat-no-data');
   const hasActiveFilters = getActiveSubstratFilters().length > 0;
   noDataEl.style.display = (hasActiveFilters && result._noData) ? 'block' : 'none';
-  // uirevision: when constant, Plotly.react() preserves all user interactions (zoom/pan).
-  // Changing the value resets them — used when the user explicitly requests a view reset.
-  layout.uirevision = _zoomReset ? Date.now() : 'arc-line-stable';
-  if (_zoomReset) _zoomReset = false;
   const chartEl_ = document.getElementById('chart');
+  // In 'all time' mode, always feed the current displayed x range back into the layout so
+  // that Plotly.react() never resets a drag-zoom.  We skip this only when _zoomReset is
+  // true (double-click reset / dataset switch), in which case buildLineLayout already set
+  // autorange:true so Plotly will re-fit to the data.
+  if (state.timeMode === 'all' && !_zoomReset) {
+    const fl = chartEl_._fullLayout;
+    if (fl && fl.xaxis && fl.xaxis.range && fl.xaxis.range.length === 2) {
+      layout.xaxis = Object.assign(layout.xaxis || {}, {range: fl.xaxis.range.slice(), autorange: false});
+    }
+  }
+  if (_zoomReset) _zoomReset = false;
   chartEl_.classList.toggle('comfort-mode', state.chartType === 'comfort');
   Plotly.react('chart', traces, layout, PLOTLY_CONFIG);
   chartEl_.once('plotly_afterplot', () => setTimeout(positionComfortOverlays, 100));
