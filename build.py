@@ -6915,25 +6915,21 @@ function _doRender() {
   const noDataEl = document.getElementById('substrat-no-data');
   const hasActiveFilters = getActiveSubstratFilters().length > 0;
   noDataEl.style.display = (hasActiveFilters && result._noData) ? 'block' : 'none';
-  // Preserve user zoom: read current axis state before re-rendering
+  // Restore user drag-zoom if active
   const chartEl_ = document.getElementById('chart');
-  if (!_zoomReset && chartEl_._fullLayout && traces.length > 0) {
-    const fl = chartEl_._fullLayout;
-    // autorange===false means the user (or we) set an explicit range via drag-zoom
-    // Skip preserving zoom if the current range looks like a garbage default (e.g. 1970 epoch)
-    const xRangeValid = fl.xaxis && fl.xaxis.range && !(typeof fl.xaxis.range[0] === 'string' && fl.xaxis.range[0].startsWith('1970'));
-    if (fl.xaxis && fl.xaxis.autorange === false && fl.xaxis.range && xRangeValid) {
-      layout.xaxis = Object.assign(layout.xaxis || {}, {range: fl.xaxis.range.slice(), autorange: false});
-    }
-    if (fl.yaxis && fl.yaxis.autorange === false && fl.yaxis.range) {
-      layout.yaxis = Object.assign(layout.yaxis || {}, {range: fl.yaxis.range.slice(), autorange: false});
-    }
+  if (!_zoomReset && _savedZoom) {
+    layout.xaxis = Object.assign(layout.xaxis || {}, {range: _savedZoom, autorange: false});
   }
+  if (_zoomReset) _savedZoom = null;
   _zoomReset = false;
   chartEl_.classList.toggle('comfort-mode', state.chartType === 'comfort');
   Plotly.react('chart', traces, layout, PLOTLY_CONFIG);
   chartEl_.once('plotly_afterplot', () => setTimeout(positionComfortOverlays, 100));
-  chartEl_.on('plotly_doubleclick', () => { _zoomReset = true; setTimeout(updatePlot, 0); });
+  chartEl_.on('plotly_relayout', ev => {
+    if ('xaxis.range[0]' in ev) _savedZoom = [ev['xaxis.range[0]'], ev['xaxis.range[1]']];
+    else if (ev['xaxis.autorange'] === true) _savedZoom = null;
+  });
+  chartEl_.on('plotly_doubleclick', () => { _zoomReset = true; _savedZoom = null; setTimeout(updatePlot, 0); });
   const histTip = document.getElementById('hist-hover-tip');
   histTip.style.display = 'none';
 
@@ -7003,12 +6999,13 @@ function _doRender() {
 // Tracks last rendered chart type + dataset to detect slow transitions
 let _lastRenderKey = null;
 let _zoomReset = false; // set true by double-click or chart switch to allow autorange
+let _savedZoom = null;  // [x0, x1] set by plotly_relayout when user drag-zooms; null = no user zoom
 let _currentTitle = '';
 let _currentLayout = {};
 function updatePlot(forceLoader) {
   const renderKey = state.chartType + '|' + state.datasetKey;
   const isSlowOp = forceLoader || renderKey !== _lastRenderKey;
-  if (renderKey !== _lastRenderKey) _zoomReset = true; // reset zoom on chart/dataset switch
+  if (renderKey !== _lastRenderKey) { _zoomReset = true; _savedZoom = null; } // reset zoom on chart/dataset switch
   _lastRenderKey = renderKey;
   // Always show loading bar - slower estimate for chart/dataset switches, short for other updates
   const ms = isSlowOp ? (state.chartType === 'comfort' ? 1500 : state.chartType.startsWith('beta-') ? 1000 : 800) : 350;
