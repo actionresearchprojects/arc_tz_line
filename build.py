@@ -4911,7 +4911,11 @@ function renderLineGraph() {
     autosize:true, font:{family:'Ubuntu, sans-serif'}, margin:{l:sm?45:65, r:sm?8:(hasWeather?50:20), t:state.showSeasonLines?(sm?70:85):(sm?6:10), b:sm?40:60},
     xaxis:{title:t('dateTime') + ' <i><span style="color:#aaa">(EAT, UTC+03:00)</span></i>', type:'date', showgrid:true, gridcolor:'#eee',
       domain: [0, xRight],
-      range: state.timeMode === 'all' ? [toEATString(dataMinMs), toEATString(dataMaxMs)] : [toEATString(start), toEATString(end)],
+      // 'all time' mode: let Plotly autorange so uirevision can preserve drag-zoom.
+      // Explicit range = developer-managed, which makes Plotly ignore user zoom even with uirevision.
+      ...(state.timeMode === 'all'
+        ? {autorange: true}
+        : {range: [toEATString(start), toEATString(end)]}),
       nticks:20, tickangle:-30, automargin:true},
     yaxis:{title:yTitle, ticksuffix:ySuffix, showgrid:true, gridcolor:'#eee', range: yLo !== undefined ? [yLo, yHi] : (hasWeather ? [0, 1] : undefined)},
     ...extraAxes,
