@@ -4869,14 +4869,16 @@ function renderLineGraph() {
     const yKey = 'yaxis' + axKey.slice(1);
     let range, tickvals;
     if (axKey === 'y3') {
-      range = [0, 360]; tickvals = [0, 180, 360]; // wind direction fixed
+      range = [0, 360]; tickvals = [0, 90, 180, 270, 360]; // wind direction fixed
     } else {
       const rawMax = axisDataMax[axKey] || 0;
       const niceMax = rawMax <= 0 ? 1 :
         rawMax <= 10  ? Math.ceil(rawMax) :
         rawMax <= 100 ? Math.ceil(rawMax / 5) * 5 :
                         Math.ceil(rawMax / 50) * 50;
-      range = [0, niceMax]; tickvals = [0, niceMax];
+      // 5 evenly-spaced ticks from 0 → niceMax
+      tickvals = Array.from({length: 5}, (_, i) => Math.round(niceMax * i / 4));
+      range = [0, niceMax];
     }
     extraAxes[yKey] = {
       overlaying: 'y', side: 'right',
@@ -4938,8 +4940,8 @@ function dateRangeAnnotation(actualStartMs, actualEndMs, atTop, extraLine) {
   if (extraLine) text += `<br>${extraLine}`;
   return {
     xref: 'paper', yref: 'paper',
-    x: 1, y: atTop ? 1 : 0,
-    xanchor: 'right', yanchor: atTop ? 'top' : 'bottom',
+    x: 0, y: atTop ? 1 : 0,
+    xanchor: 'left', yanchor: atTop ? 'top' : 'bottom',
     text,
     showarrow: false,
     font: {size: 10, color: '#888'},
