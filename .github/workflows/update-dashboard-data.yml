@@ -2,10 +2,8 @@ name: Update dashboard data
 
 on:
   schedule:
-    - cron: '0 4 * * *'  # daily at 04:00 UTC
-  workflow_dispatch:       # manual trigger from GitHub UI
-  repository_dispatch:
-    types: [sibling-data-updated]
+    - cron: '0 6 * * *'  # daily at 06:00 UTC, after arc_tz_temp_humid (04:00) and arc_tz_weather (05:00)
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -23,22 +21,41 @@ jobs:
           python-version: '3.12'
 
       - name: Install build dependencies
-        run: pip install pandas pytz requests openpyxl
+        run: pip install pandas pytz
 
-      - name: Fetch climate cycle data (ENSO, IOD, MJO)
-        continue-on-error: true
-        run: python fetch_cycles.py
+      - name: Copy latest data from arc_tz_temp_humid
+        run: |
+          # arc_tz_temp_humid is public; no authentication needed
+          git clone --depth 1 --filter=blob:none --sparse \
+            https://github.com/actionresearchprojects/arc_tz_temp_humid.git \
+            /tmp/temp_humid
+          cd /tmp/temp_humid
+          git sparse-checkout set data/omnisense data/openmeteo data/cycles
+          cd -
 
-      - name: Fetch Open-Meteo data
-        continue-on-error: true
-        run: python fetch_openmeteo.py
+          # Omnisense CSV (contains both T&H loggers and weather station sensor 30B40014)
+          mkdir -p data/omnisense
+          rm -f data/omnisense/omnisense_*.csv
+          cp /tmp/temp_humid/data/omnisense/omnisense_*.csv data/omnisense/ 2>/dev/null || true
+          rm -rf data/omnisense/legacy
+          echo "Omnisense:"
+          ls -la data/omnisense/
 
-      - name: Fetch Omnisense data
-        continue-on-error: true
-        env:
-          OMNISENSE_USERNAME: ${{ secrets.OMNISENSE_USERNAME }}
-          OMNISENSE_PASSWORD: ${{ secrets.OMNISENSE_PASSWORD }}
-        run: python fetch_omnisense.py
+          # Open-Meteo historical + forecast CSVs (used for external temperature loggers)
+          mkdir -p data/openmeteo
+          rm -f data/openmeteo/historical_*.csv data/openmeteo/forecast_*.csv
+          cp /tmp/temp_humid/data/openmeteo/historical_*.csv data/openmeteo/ 2>/dev/null || true
+          cp /tmp/temp_humid/data/openmeteo/forecast_*.csv data/openmeteo/ 2>/dev/null || true
+          echo "Open-Meteo:"
+          ls -la data/openmeteo/
+
+          # Climate cycle data (ENSO/IOD/MJO)
+          mkdir -p data/cycles/enso data/cycles/iod data/cycles/mjo
+          cp /tmp/temp_humid/data/cycles/enso/oni.csv data/cycles/enso/ 2>/dev/null || true
+          cp /tmp/temp_humid/data/cycles/iod/iod_1.txt data/cycles/iod/ 2>/dev/null || true
+          cp /tmp/temp_humid/data/cycles/mjo/romi.cpcolr.1x.txt data/cycles/mjo/ 2>/dev/null || true
+          echo "Cycles:"
+          ls -la data/cycles/enso/ data/cycles/iod/ data/cycles/mjo/
 
       - name: Rebuild dashboard
         run: python build.py --auto
@@ -47,9 +64,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "actions@users.noreply.github.com"
-          git add data/openmeteo/ index.html
-          [ -d data/omnisense ] && git add data/omnisense/ || true
-          [ -d data/cycles ] && git add data/cycles/ || true
+          git add data/omnisense/ data/openmeteo/ data/cycles/ index.html
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
