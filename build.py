@@ -686,16 +686,29 @@ def load_weather_station_csv(path):
         parsed.append(rec)
     parsed.sort(key=lambda x: x["dt"])
     eat = pytz.timezone("Africa/Dar_es_Salaam")
+    # Wind QC thresholds (must match arc_tz_weather/modules/common.py)
+    AVG_CEIL  = 60    # km/h: above Beaufort 7, implausible as a 5-min average at this site
+    PEAK_CEIL = 100   # km/h: hard absolute ceiling for peak gust
+    BOUNCE_RATIO    = 8   # peak/avg ratio threshold indicating reed switch bounce
+    BOUNCE_MIN_PEAK = 25  # km/h: minimum peak speed for ratio filter to engage
     for rec in parsed:
         dt = rec["dt"]
         if dt.tzinfo is None:
             dt = eat.localize(dt)
         ms = int(dt.timestamp() * 1000)
+        avg  = rec["avg_wind_kph"]
         peak = rec["peak_wind_kph"]
-        if peak is not None and peak > 150:
-            peak = None
+        # avg ceiling
+        if avg is not None and avg > AVG_CEIL:
+            avg = None
+        # peak: ratio-based bounce filter + ceiling
+        if peak is not None:
+            safe_avg = avg if (avg is not None and avg > 0) else None
+            ratio = (peak / safe_avg) if safe_avg is not None else float("inf")
+            if (ratio > BOUNCE_RATIO and peak > BOUNCE_MIN_PEAK) or peak > PEAK_CEIL:
+                peak = None
         out["timestamps"].append(ms)
-        out["avg_wind_kph"].append(rec["avg_wind_kph"])
+        out["avg_wind_kph"].append(avg)
         out["peak_wind_kph"].append(peak)
         out["wind_dir"].append(rec["wind_dir"])
         out["solar_wm2"].append(rec["solar_wm2"])
@@ -4759,26 +4772,20 @@ function renderLineGraph() {
     });
   }
 
-  // Weather station traces — all normalised to [0,1] and plotted on a single shared right y-axis (y2).
-  // Each variable is divided by its own niceMax so different units can coexist without scale conflict.
+  // Weather station traces — one right-side y-axis per unit family (kph / ° / W/m² / mm / ppm)
   const WEATHER_DEFS = {
-    avg_wind_kph:   {group: 'wind',  color: '#1f77b4', label: 'Avg Wind',           unit: 'kph'},
-    peak_wind_kph:  {group: 'wind',  color: '#154d72', label: 'Peak Wind',          unit: 'kph'},
-    wind_dir:       {group: 'dir',   color: '#9b59b6', label: 'Wind Direction',     unit: '\u00b0'},
-    solar_wm2:      {group: 'solar', color: '#f1c40f', label: 'Solar Radiation',    unit: 'W/m\u00b2'},
-    precip_rate_mmh:{group: 'rain',  color: '#27ae60', label: 'Rainfall Rate',      unit: 'mm/h'},
-    precip_total_mm:{group: 'rain',  color: '#148d49', label: 'Rainfall Cumulative',unit: 'mm'},
-    co2_ppm:        {group: 'co2',   color: '#e84393', label: 'CO2',               unit: 'ppm'},
+    avg_wind_kph:   {color: '#1f77b4', label: 'Avg Wind',  unit: 'kph',       axis: 'y2'},
+    peak_wind_kph:  {color: '#4a9fd4', label: 'Peak Wind', unit: 'kph',       axis: 'y2'},
+    wind_dir:       {color: '#9b59b6', label: 'Wind Dir',  unit: '\u00b0',    axis: 'y3'},
+    solar_wm2:      {color: '#e6a817', label: 'Solar',     unit: 'W/m\u00b2', axis: 'y4'},
+    precip_rate_mmh:{color: '#27ae60', label: 'Rain Rate', unit: 'mm/h',      axis: 'y5'},
+    precip_total_mm:{color: '#1a7a42', label: 'Rain Total',unit: 'mm',        axis: 'y5'},
+    co2_ppm:        {color: '#e84393', label: 'CO\u2082',  unit: 'ppm',       axis: 'y6'},
   };
-  function _niceMax(rawMax, wv) {
-    if (wv === 'wind_dir') return 360;
-    if (!rawMax || rawMax <= 0) return 1;
-    if (rawMax <= 10) return Math.ceil(rawMax);
-    if (rawMax <= 100) return Math.ceil(rawMax / 5) * 5;
-    return Math.ceil(rawMax / 50) * 50;
-  }
-  const pendingWeather = []; // {sliceX, wv, rawY, def} — collected before normalisation
-  const weatherVarRawMax = {};
+  const AXIS_UNIT  = {y2: 'kph', y3: '\u00b0', y4: 'W/m\u00b2', y5: 'mm', y6: 'ppm'};
+  const AXIS_COLOR = {y2: '#1f77b4', y3: '#9b59b6', y4: '#e6a817', y5: '#27ae60', y6: '#e84393'};
+  const activeAxes = new Set();
+  const axisDataMax = {}; // axisKey → max observed value for tick range
 
   if (WEATHER_STATION && WEATHER_STATION.timestamps && state.selectedWeather.size > 0 && state.datasetKey === 'house5') {
     const wsVars = [...state.selectedWeather].filter(wv => wv !== 'co2_ppm' && WEATHER_DEFS[wv]);
@@ -4797,9 +4804,17 @@ function renderLineGraph() {
           const src = WEATHER_STATION[wv];
           if (!def || !src) continue;
           const rawY = src.slice(i0, i1 + 1);
-          pendingWeather.push({sliceX, wv, rawY, def});
           const valids = rawY.filter(v => v != null && isFinite(v));
-          if (valids.length) weatherVarRawMax[wv] = Math.max(...valids);
+          const mx = valids.length ? Math.max(...valids) : 0;
+          if (axisDataMax[def.axis] === undefined || mx > axisDataMax[def.axis]) axisDataMax[def.axis] = mx;
+          activeAxes.add(def.axis);
+          traces.push({
+            x: sliceX, y: rawY, type: 'scatter', mode: 'lines',
+            name: def.label + ' <span style="color:#aaa">(' + def.unit + ')</span>',
+            line: {color: def.color, width: 1.5}, opacity: 0.9, connectgaps: false,
+            yaxis: def.axis, meta: {loggerId: 'weather_' + wv},
+            hovertemplate: `${def.label}<br>%{x|%d/%m/%Y %H:%M}<br>%{y:.1f} ${def.unit}<extra></extra>`,
+          });
         }
       }
     }
@@ -4815,10 +4830,19 @@ function renderLineGraph() {
       for (let i = i0; i <= i1; i++) sliceX.push(toEATString(ts[i]));
       if (ts[i0] < dataMinMs) dataMinMs = ts[i0];
       if (ts[i1] > dataMaxMs) dataMaxMs = ts[i1];
+      const co2Def = WEATHER_DEFS['co2_ppm'];
       const co2RawY = CO2_DATA.co2.slice(i0, i1 + 1);
-      pendingWeather.push({sliceX, wv: 'co2_ppm', rawY: co2RawY, def: WEATHER_DEFS['co2_ppm']});
       const co2Valids = co2RawY.filter(v => v != null && isFinite(v));
-      if (co2Valids.length) weatherVarRawMax['co2_ppm'] = Math.max(...co2Valids);
+      const co2Mx = co2Valids.length ? Math.max(...co2Valids) : 0;
+      if (axisDataMax[co2Def.axis] === undefined || co2Mx > axisDataMax[co2Def.axis]) axisDataMax[co2Def.axis] = co2Mx;
+      activeAxes.add(co2Def.axis);
+      traces.push({
+        x: sliceX, y: co2RawY, type: 'scatter', mode: 'lines',
+        name: co2Def.label + ' <span style="color:#aaa">(' + co2Def.unit + ')</span>',
+        line: {color: co2Def.color, width: 1.5}, opacity: 0.9, connectgaps: false,
+        yaxis: co2Def.axis, meta: {loggerId: 'weather_co2_ppm'},
+        hovertemplate: `${co2Def.label}<br>%{x|%d/%m/%Y %H:%M}<br>%{y:.0f} ${co2Def.unit}<extra></extra>`,
+      });
     }
   }
 
@@ -4831,58 +4855,52 @@ function renderLineGraph() {
   const dsl = dsLabel();
   const sm = window.innerWidth < 680;
 
-  // Second pass: normalise each weather variable to [0,1] and create traces on shared y2
-  const activeWeatherVars = []; // {wv, def, niceMax} in order
-  pendingWeather.forEach(({sliceX, wv, rawY, def}) => {
-    const nm = _niceMax(weatherVarRawMax[wv], wv);
-    const normY = rawY.map(v => (v != null && isFinite(v)) ? v / nm : null);
-    activeWeatherVars.push({wv, def, niceMax: nm});
-    traces.push({
-      x: sliceX, y: normY, customdata: rawY,
-      type: 'scatter', mode: 'lines',
-      name: def.label + ' <span style="color:#aaa">(' + def.unit + ')</span>',
-      line: {color: def.color, width: 1.4}, opacity: 0.9, connectgaps: false,
-      yaxis: 'y2', meta: {loggerId: 'weather_' + wv},
-      hovertemplate: `${def.label}<br>%{x|%d/%m/%Y %H:%M}<br>%{customdata:.2f} ${def.unit}<extra></extra>`,
-    });
-  });
-  const hasWeather = activeWeatherVars.length > 0;
-  // Right-margin annotation strip: each variable's max+unit in its trace colour
-  if (hasWeather) {
-    const nVars = activeWeatherVars.length;
-    activeWeatherVars.forEach((info, idx) => {
-      annotations.push({
-        xref: 'paper', yref: 'paper',
-        x: 0.998, y: 1 - (idx + 0.5) / nVars,
-        xanchor: 'left', yanchor: 'middle',
-        text: `<b>${info.niceMax}</b><span style="color:#bbb"> ${info.def.unit}</span>`,
-        showarrow: false, font: {size: 8, color: info.def.color},
-      });
-    });
+  // Build one right-side y-axis per active unit family; a small annotation above each shows its unit
+  const hasWeather = activeAxes.size > 0;
+  const AXIS_ORDER = ['y2', 'y3', 'y4', 'y5', 'y6'];
+  const activeAxisList = AXIS_ORDER.filter(a => activeAxes.has(a));
+  const STEP = 0.04; // fraction of chart width per axis column
+  const xRight = hasWeather ? Math.max(0.62, 1 - STEP * activeAxisList.length) : 1;
+  const extraAxes = {};
+  activeAxisList.forEach((axKey, idx) => {
+    const position = Math.min(0.99, xRight + STEP * idx);
+    const axColor = AXIS_COLOR[axKey];
+    const unit = AXIS_UNIT[axKey];
+    const yKey = 'yaxis' + axKey.slice(1);
+    let range, tickvals;
+    if (axKey === 'y3') {
+      range = [0, 360]; tickvals = [0, 180, 360]; // wind direction fixed
+    } else {
+      const rawMax = axisDataMax[axKey] || 0;
+      const niceMax = rawMax <= 0 ? 1 :
+        rawMax <= 10  ? Math.ceil(rawMax) :
+        rawMax <= 100 ? Math.ceil(rawMax / 5) * 5 :
+                        Math.ceil(rawMax / 50) * 50;
+      range = [0, niceMax]; tickvals = [0, niceMax];
+    }
+    extraAxes[yKey] = {
+      overlaying: 'y', side: 'right',
+      anchor: idx === 0 ? 'x' : 'free',
+      position, range, rangemode: 'tozero',
+      showgrid: false, showline: true, linewidth: 1.5,
+      linecolor: axColor, tickcolor: axColor,
+      tickfont: {size: 8, color: axColor},
+      tickmode: 'array', tickvals, ticks: 'outside', ticklen: 3,
+      showticklabels: true, automargin: false,
+    };
     annotations.push({
       xref: 'paper', yref: 'paper',
-      x: 0.998, y: 0.005,
-      xanchor: 'left', yanchor: 'bottom',
-      text: '<b>0</b>', showarrow: false, font: {size: 8, color: '#aaa'},
+      x: position, y: 1.01, xanchor: 'center', yanchor: 'bottom',
+      text: unit, showarrow: false, font: {size: 8, color: axColor},
     });
-  }
-  const xRight = hasWeather ? 0.87 : 1;
-  const extraAxes = hasWeather ? {
-    yaxis2: {
-      overlaying: 'y', side: 'right', anchor: 'x',
-      range: [0, 1], fixedrange: true,
-      showticklabels: false, showgrid: false,
-      showline: true, linewidth: 1, linecolor: '#ccc',
-      ticks: '', automargin: false,
-    }
-  } : {};
+  });
 
   const plotTitle = state.historicMode
     ? 'Dar es Salaam \u2013 Historic and Projected Temperatures'
     : `${dsl} \u2013 ${chartTitle}`;
   const barTitle = plotTitle.replace(/&amp;/g, '&');
   return {traces, layout: {
-    autosize:true, font:{family:'Ubuntu, sans-serif'}, margin:{l:sm?45:65, r:sm?8:(hasWeather?85:20), t:state.showSeasonLines?(sm?70:85):(sm?6:10), b:sm?40:60},
+    autosize:true, font:{family:'Ubuntu, sans-serif'}, margin:{l:sm?45:65, r:sm?8:(hasWeather?50:20), t:state.showSeasonLines?(sm?70:85):(sm?6:10), b:sm?40:60},
     xaxis:{title:t('dateTime') + ' <i><span style="color:#aaa">(EAT, UTC+03:00)</span></i>', type:'date', showgrid:true, gridcolor:'#eee',
       domain: [0, xRight],
       range: state.timeMode === 'all' ? [toEATString(dataMinMs), toEATString(dataMaxMs)] : [toEATString(start), toEATString(end)],
