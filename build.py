@@ -1093,6 +1093,7 @@ def build_dataset_json(key, df, logger_overrides=None):
 
     return {
         "meta": {
+            "label":        cfg["label"],
             "loggers":      unique_loggers,
             "loggerNames":  logger_names,
             "loggerNamesSw": {k: LOGGER_NAMES_SW.get(k, v) for k, v in logger_names.items()},
@@ -4545,7 +4546,7 @@ function omniSuffix(source) {
 function meteoSuffix(id) {
   return isOpenMeteo(id) ? '<span style="color:#aaa"> (Open-Meteo)</span>' : '';
 }
-function dsLabel() { const s = document.getElementById('dataset-select'); return s.options[s.selectedIndex].text; }
+function dsLabel() { return dataset().meta.label; }
 // Converts a UTC epoch ms value to an EAT local time string (YYYY-MM-DD HH:MM:SS).
 // Plotly treats bare date strings as calendar-absolute (no browser-timezone conversion),
 // so this ensures timestamps always display in EAT regardless of the viewer's browser timezone.
