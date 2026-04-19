@@ -51,7 +51,7 @@ OPENMETEO_LEGACY_ID = "External (Open-Meteo)"  # backward-compat with old single
 
 DATASETS = {
     "house5": {
-        "label": "Aladdin's Cave",
+        "label": "ARC Tanzania - Aladdin's Cave",
         "folder": Path("data/house5"),
         "skip_rows": 350,
         "external_logger": OPENMETEO_HISTORICAL_ID,
@@ -1522,7 +1522,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       <div id="time-bar-top">
         <div id="time-bar-left">
           <select id="dataset-select">
-            <option value="house5" data-i18n="house5">Aladdin's Cave</option>
+            <option value="house5" data-i18n="house5">ARC Tanzania - Aladdin's Cave</option>
             <option value="dauda" data-i18n="schoolteacher">Schoolteacher's House</option>
           </select>
           <select id="chart-type" style="display:none">
@@ -1739,7 +1739,7 @@ const I18N = {
     withinComfort: 'Within comfort zone',
     aboveLower: 'Above lower boundary',
     // Dataset labels
-    house5: "Aladdin's Cave",
+    house5: "ARC Tanzania - Aladdin's Cave",
     schoolteacher: "Schoolteacher's House",
     // Section sub-headers
     sectionExternal: 'External',
@@ -1880,7 +1880,7 @@ const I18N = {
     belowUpper: 'Chini ya mpaka wa juu',
     withinComfort: 'Ndani ya eneo la starehe',
     aboveLower: 'Juu ya mpaka wa chini',
-    house5: "Aladdin's Cave",
+    house5: "ARC Tanzania - Aladdin's Cave",
     schoolteacher: 'Nyumba ya Mwalimu',
     sectionExternal: 'Nje',
     sectionRoom: 'Chumba',
