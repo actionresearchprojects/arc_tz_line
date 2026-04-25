@@ -1233,7 +1233,8 @@ input[type=date] { font-size: 12px; padding: 3px 5px; border: 1px solid #ccc; bo
 #advanced-settings-arrow { transition:transform 0.2s; display:inline-block; font-size:9px; }
 #advanced-settings-arrow.open { transform:rotate(90deg); }
 #advanced-settings-body { display:none; margin-top:6px; }
-.substrat-combine { display:flex; align-items:center; gap:6px; margin-bottom:8px; font-size:11px; }
+.wb-sub-label { padding-left:14px; }
+.substrat-combine{ display:flex; align-items:center; gap:6px; margin-bottom:8px; font-size:11px; }
 .substrat-combine label { cursor:pointer; display:flex; align-items:center; gap:3px; }
 .substrat-filter { border:1px solid #ddd; border-radius:5px; padding:8px; margin-bottom:6px; position:relative; background:#fafafa; }
 .substrat-filter.invalid { border-color:#e06060; background:#fef5f5; }
@@ -1389,6 +1390,11 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
           <div id="substrat-filters" class="substrat-only" style="display:none"></div>
           <button id="substrat-add-btn" class="substrat-only" style="display:none" onclick="addSubstratFilter()" data-i18n="addFilter">+ Add Filter</button>
           <label class="cb-label" id="anomalous-label" style="display:none"><input type="checkbox" id="cb-exclude-anomalous"> Exclude anomalous data</label>
+          <div id="wetbulb-adv-wrap" style="display:none">
+            <hr class="divider">
+            <label class="cb-label"><input type="checkbox" id="cb-wetbulb"> Wet Bulb (Tw) <span class="info-i" id="wetbulb-info-icon">i</span></label>
+            <div class="info-tip-fixed" id="wetbulb-info-tip"></div>
+          </div>
           <hr class="divider" id="compare-divider">
           <label class="cb-label"><input type="checkbox" id="cb-compare"> <b>Compare Mode</b> <span class="info-i" id="compare-info-icon">i</span></label>
           <div class="info-tip-fixed" id="compare-info-tip"></div>
@@ -1656,6 +1662,8 @@ const state = {
   substratCombine: 'all',
   histogramBarmode: 'stack',
   excludeAnomalous: false,
+  wetBulbEnabled: false,
+  wetBulbLoggers: new Set(),
   compareEnabled: false,
   compareSetCount: 2,
   compareSets: [],
@@ -1805,6 +1813,10 @@ const I18N = {
     infoLongTerm: 'Places current sensor readings in a longer climate context. Shows historic temperature data back to 1940 and future projections under different climate scenarios, so you can see how today\'s conditions relate to past and expected trends.',
     infoComfortBand: 'The green band shows the range of indoor temperatures considered comfortable, based on the ASHRAE-55 adaptive comfort standard. The default model ignores humidity, which can overestimate overheating by around 30%. The Vellei et al. options use <a href="https://doi.org/10.1016/j.buildenv.2017.08.005" target="_blank" style="color:#6a9fd8">humidity-aware comfort bands</a> derived from global field study data, better reflecting how people adapt in humid climates.',
     infoRunningMean: 'The running mean is an exponentially weighted average of past outdoor temperatures, where recent days count most. It captures how people acclimatise to changing weather: when outdoor temperatures have been high, occupants can tolerate higher indoor temperatures. <a href="https://actionresearchprojects.net/explainers/running-mean" target="_blank" style="color:#6a9fd8">Read more →</a>',
+    wetBulb:       'Wet Bulb',
+    wetBulbSuffix: '(Wet bulb)',
+    wetBulbHover:  'Wet bulb (Tw)',
+    infoWetBulb:   'Wet bulb temperature (Tw) is the lowest temperature achievable by evaporative cooling, a key heat stress indicator. When Tw exceeds 32°C, cooling by sweating becomes difficult; above 35°C it is dangerous for prolonged exposure. Calculated using the Stull (2011) approximation, accurate to ±0.3°C in tropical conditions. Valid range: –20 to 50°C and 5–99% RH. Readings below 5% RH are shown as gaps; readings above 99% RH (sensor saturation) are clamped to 99% before calculating. Shown as a dashed line in the same colour as the parent sensor.',
   },
   sw: {
     title: "ARC Tanzania - Aladdin's Cave",
@@ -1939,6 +1951,10 @@ const I18N = {
     infoLongTerm: 'Inaweka masomo ya sasa ya sensor katika muktadha wa hali ya hewa ya muda mrefu. Inaonyesha data ya joto ya kihistoria tangu 1940 na makadirio ya siku zijazo chini ya hali tofauti za hali ya hewa.',
     infoComfortBand: 'Bendi ya kijani inaonyesha kiwango cha joto la ndani kinachochukuliwa kuwa na starehe, kulingana na kiwango cha ASHRAE-55. Mtindo wa kawaida unapuuza unyevunyevu, ambao unaweza kukadiri kupita kiasi kwa karibu 30%. Chaguo za Vellei et al. zinatumia <a href="https://doi.org/10.1016/j.buildenv.2017.08.005" target="_blank" style="color:#6a9fd8">bendi za starehe zinazozingatia unyevunyevu</a> kutoka data ya utafiti wa kimataifa.',
     infoRunningMean: 'Wastani wa running mean ni wastani unaopimwa kwa nguvu zaidi kwa siku za hivi karibuni za joto la nje. Inaonyesha jinsi watu wanavyozoea hali ya hewa: joto la nje limekuwa juu, wenyeji wanastahimili joto zaidi ndani, kwa hivyo bendi ya starehe inasogea kulia. <a href="https://actionresearchprojects.net/explainers/running-mean" target="_blank" style="color:#6a9fd8">Soma zaidi →</a>',
+    wetBulb:       'Joto la Mvua (Tw)',
+    wetBulbSuffix: '(Joto la mvua)',
+    wetBulbHover:  'Joto la mvua (Tw)',
+    infoWetBulb:   'Joto la mvua (Tw) ni joto la chini kabisa linaloweza kufikiwa kwa kupoa kwa uvukizi, kiashiria muhimu cha msongo wa joto. Imehesabiwa kwa kutumia mkaribisho wa Stull (2011). Masafa halali: –20 hadi 50°C na 5–99% RH. Maadili chini ya 5% RH yanaonyeshwa kama mapengo; maadili zaidi ya 99% RH (kipimo kikifikia kikomo chake) yanafupishwa hadi 99% kabla ya kuhesabu. Inaonyeshwa kama mstari wa nukta katika rangi ile ile ya sensor.',
   }
 };
 function t(key) { return (I18N[currentLang] || I18N.en)[key] || I18N.en[key] || key; }
@@ -2116,6 +2132,8 @@ function applyLanguage() {
   document.querySelectorAll('.logger-name[data-lid]').forEach(span => {
     span.textContent = ln(span.dataset.lid);
   });
+  // Update wet bulb suffix text on sub-labels
+  document.querySelectorAll('.wb-suffix').forEach(span => { span.textContent = ' ' + t('wetBulbSuffix'); });
 
   // Re-render chart with translated labels
   if (typeof updatePlot === 'function') {
@@ -3002,6 +3020,18 @@ function getCompareIterations() {
 function isOpenMeteo(id) { return id && id.indexOf('(Open-Meteo)') !== -1; }
 function isForecast(id) { return id && id.indexOf('Forecast') !== -1 && isOpenMeteo(id); }
 
+// Stull (2011) wet-bulb approximation — accurate to ±0.3°C for tropical conditions
+// Valid range: T -20 to 50°C, RH 5 to 99%
+function stullWetBulb(T, RH) {
+  if (T < -20 || T > 50 || RH < 5) return null;
+  if (RH > 99) RH = 99; // sensor saturation artefact — clamp to valid ceiling
+  return T * Math.atan(0.151977 * Math.pow(RH + 8.313659, 0.5))
+    + Math.atan(T + RH)
+    - Math.atan(RH - 1.676331)
+    + 0.00391838 * Math.pow(RH, 1.5) * Math.atan(0.023101 * RH)
+    - 4.686035;
+}
+
 function loggerTooltip(id, m) {
   const src = (m.loggerSources && m.loggerSources[id]) || '';
   let tip = (id === 'govee' || isOpenMeteo(id)) ? src : (src ? `${src} · ${id}` : id);
@@ -3177,7 +3207,8 @@ function loadDataset(key) {
   }
   // Generic checkbox + section builder for both line/histogram and comfort sidebars
   const anomRanges = m.anomalousRanges || {};
-  function addCheckbox(container, stateSet, id, extraLabel) {
+  const wbEligibleSet = new Set([...(m.externalLoggers || []), ...m.loggers.filter(id => (new Set(m.roomLoggers || [])).has(id))]);
+  function addCheckbox(container, stateSet, id, extraLabel, skipWb) {
     const lbl = document.createElement('label');
     lbl.className = 'cb-label';
     lbl.dataset.tooltip = loggerTooltip(id, m);
@@ -3204,8 +3235,26 @@ function loadDataset(key) {
       warn.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
     }
     container.appendChild(lbl);
+    // Inject wet bulb sub-checkbox directly below (only in logger-checkboxes, not comfort panel)
+    if (!skipWb && wbEligibleSet.has(id)) {
+      const color = m.colors[id] || '#999';
+      const wbIcon = `<svg width="16" height="10" viewBox="0 0 16 10" style="vertical-align:middle;flex-shrink:0"><line x1="1" y1="5" x2="15" y2="5" stroke="${color}" stroke-width="2" stroke-dasharray="4,2.5"/></svg>`;
+      const wbWrap = document.createElement('div');
+      wbWrap.className = 'wb-sub-label';
+      wbWrap.style.display = state.wetBulbEnabled ? '' : 'none';
+      const wbLbl = document.createElement('label');
+      wbLbl.className = 'cb-label';
+      wbLbl.style.fontSize = '11px';
+      wbLbl.innerHTML = `<input type="checkbox" data-wb-logger="${id}" ${state.wetBulbLoggers.has(id) ? 'checked' : ''}> ${wbIcon} <span class="logger-name" data-lid="${id}">${ln(id)}</span> <span class="wb-suffix" style="color:#888">${t('wetBulbSuffix')}</span>`;
+      wbLbl.querySelector('input').addEventListener('change', e => {
+        e.target.checked ? state.wetBulbLoggers.add(id) : state.wetBulbLoggers.delete(id);
+        updatePlot();
+      });
+      wbWrap.appendChild(wbLbl);
+      container.appendChild(wbWrap);
+    }
   }
-  function addSection(container, stateSet, title, ids, extraBtns, extraLabelFn, sectionKey) {
+  function addSection(container, stateSet, title, ids, extraBtns, extraLabelFn, sectionKey, skipWb) {
     if (ids.length === 0) return;
     const titleEl = document.createElement('div');
     titleEl.className = 'sub-section-title';
@@ -3214,12 +3263,26 @@ function loadDataset(key) {
     const btnRow = document.createElement('div');
     btnRow.style.cssText = 'display:flex;gap:4px;margin-bottom:4px;flex-wrap:wrap;';
     btnRow.appendChild(mkSelBtn(t('btnAll'), () => {
-      ids.forEach(id => { stateSet.add(id); container.querySelector(`input[data-logger-id="${id}"]`).checked = true; });
+      ids.forEach(id => {
+        stateSet.add(id); container.querySelector(`input[data-logger-id="${id}"]`).checked = true;
+        if (state.wetBulbEnabled && wbEligibleSet.has(id)) {
+          state.wetBulbLoggers.add(id);
+          const wbCb = container.querySelector(`input[data-wb-logger="${id}"]`);
+          if (wbCb) wbCb.checked = true;
+        }
+      });
       if (sectionKey) { state.showSectionAvg[sectionKey] = true; const cb = container.querySelector(`input[data-section-avg="${sectionKey}"]`); if (cb) cb.checked = true; }
       updatePlot();
     }, 'btnAll'));
     btnRow.appendChild(mkSelBtn(t('btnNone'), () => {
-      ids.forEach(id => { stateSet.delete(id); container.querySelector(`input[data-logger-id="${id}"]`).checked = false; });
+      ids.forEach(id => {
+        stateSet.delete(id); container.querySelector(`input[data-logger-id="${id}"]`).checked = false;
+        if (state.wetBulbEnabled && wbEligibleSet.has(id)) {
+          state.wetBulbLoggers.delete(id);
+          const wbCb = container.querySelector(`input[data-wb-logger="${id}"]`);
+          if (wbCb) wbCb.checked = false;
+        }
+      });
       if (sectionKey) { state.showSectionAvg[sectionKey] = false; const cb = container.querySelector(`input[data-section-avg="${sectionKey}"]`); if (cb) cb.checked = false; }
       updatePlot();
     }, 'btnNone'));
@@ -3252,15 +3315,22 @@ function loadDataset(key) {
     }
     if (extraBtns) extraBtns.forEach(b => btnRow.appendChild(b));
     container.appendChild(btnRow);
-    ids.forEach(id => addCheckbox(container, stateSet, id, extraLabelFn ? extraLabelFn(id) : ''));
+    ids.forEach(id => addCheckbox(container, stateSet, id, extraLabelFn ? extraLabelFn(id) : '', skipWb));
   }
   function mkSourceBtns(container, stateSet, ids) {
     const hasTT = ids.some(id => m.loggerSources[id] === 'TinyTag');
     const hasOS = ids.some(id => m.loggerSources[id] === 'Omnisense');
     if (!hasTT || !hasOS) return null;
+    function syncWb(id, checked) {
+      if (state.wetBulbEnabled && wbEligibleSet.has(id)) {
+        checked ? state.wetBulbLoggers.add(id) : state.wetBulbLoggers.delete(id);
+        const wbCb = container.querySelector(`input[data-wb-logger="${id}"]`);
+        if (wbCb) wbCb.checked = checked;
+      }
+    }
     return [
-      mkSelBtn('TinyTag',  () => { ids.forEach(id => { const is = m.loggerSources[id]==='TinyTag';  is ? stateSet.add(id) : stateSet.delete(id); container.querySelector(`input[data-logger-id="${id}"]`).checked = is; }); updatePlot(); }),
-      mkSelBtn('Omnisense',() => { ids.forEach(id => { const is = m.loggerSources[id]==='Omnisense'; is ? stateSet.add(id) : stateSet.delete(id); container.querySelector(`input[data-logger-id="${id}"]`).checked = is; }); updatePlot(); }),
+      mkSelBtn('TinyTag',  () => { ids.forEach(id => { const is = m.loggerSources[id]==='TinyTag';  is ? stateSet.add(id) : stateSet.delete(id); container.querySelector(`input[data-logger-id="${id}"]`).checked = is; syncWb(id, is); }); updatePlot(); }),
+      mkSelBtn('Omnisense',() => { ids.forEach(id => { const is = m.loggerSources[id]==='Omnisense'; is ? stateSet.add(id) : stateSet.delete(id); container.querySelector(`input[data-logger-id="${id}"]`).checked = is; syncWb(id, is); }); updatePlot(); }),
     ];
   }
   const extSet   = new Set(m.externalLoggers || []);
@@ -3283,6 +3353,8 @@ function loadDataset(key) {
     });
     container.appendChild(lbl);
   }
+  // Reset wet bulb logger set; sub-checkboxes are injected by addCheckbox below
+  state.wetBulbLoggers = new Set();
   // External section
   if (m.externalLoggers && m.externalLoggers.length > 0) {
     addSection(loggerDiv, state.selectedLoggers, t('sectionExternal'), m.externalLoggers, null, extTTLabel, 'external');
@@ -3310,10 +3382,10 @@ function loadDataset(key) {
   roomDiv.innerHTML = '';
   const comfortRoomIds = (m.comfortLoggers || m.roomLoggers).filter(id => (m.roomLoggers || []).includes(id));
   const comfortStructIds = (m.comfortLoggers || []).filter(id => (m.structuralLoggers || []).includes(id));
-  addSection(roomDiv, state.selectedRoomLoggers, t('sectionRoom'), comfortRoomIds, mkSourceBtns(roomDiv, state.selectedRoomLoggers, comfortRoomIds));
+  addSection(roomDiv, state.selectedRoomLoggers, t('sectionRoom'), comfortRoomIds, mkSourceBtns(roomDiv, state.selectedRoomLoggers, comfortRoomIds), null, null, true);
   if (comfortStructIds.length > 0) {
     if (comfortRoomIds.length > 0) { const hr = document.createElement('hr'); hr.className = 'divider'; roomDiv.appendChild(hr); }
-    addSection(roomDiv, state.selectedRoomLoggers, 'Structural', comfortStructIds, mkSourceBtns(roomDiv, state.selectedRoomLoggers, comfortStructIds));
+    addSection(roomDiv, state.selectedRoomLoggers, 'Structural', comfortStructIds, mkSourceBtns(roomDiv, state.selectedRoomLoggers, comfortStructIds), null, null, true);
   }
 
   // Show historic section if data available
@@ -3393,8 +3465,11 @@ function loadDataset(key) {
   const hasAnomalous = dataset().meta.anomalousRanges && Object.keys(dataset().meta.anomalousRanges).length > 0;
   document.getElementById('anomalous-label').style.display = hasAnomalous ? '' : 'none';
   const isLineChart = state.chartType === 'line';
+  const isPeriodicChart = state.chartType === 'periodic';
   const showSubstratNow = !isLineChart;
-  document.getElementById('advanced-settings-wrap').style.display = (showSubstratNow || hasAnomalous) ? '' : 'none';
+  const _wbOk = (isLineChart || isPeriodicChart) && !state.historicMode;
+  document.getElementById('wetbulb-adv-wrap').style.display = _wbOk ? '' : 'none';
+  document.getElementById('advanced-settings-wrap').style.display = (showSubstratNow || hasAnomalous || _wbOk) ? '' : 'none';
 
   // Update reading count in sidebar footer
   const rcEl = document.getElementById('dataset-reading-count');
@@ -3514,6 +3589,12 @@ function resetLineDefaults() {
   advBody2.dataset.open = '0';
   advBody2.style.display = 'none';
   document.getElementById('advanced-settings-arrow').classList.remove('open');
+
+  state.wetBulbEnabled = false;
+  state.wetBulbLoggers = new Set();
+  document.getElementById('cb-wetbulb').checked = false;
+  document.querySelectorAll('.wb-sub-label').forEach(el => { el.style.display = 'none'; });
+  document.querySelectorAll('input[data-wb-logger]').forEach(cb => { cb.checked = false; });
 
   updatePlot();
 }
@@ -3670,6 +3751,8 @@ function setupStaticListeners() {
     }
     const hasAnomalousData = dataset().meta.anomalousRanges && Object.keys(dataset().meta.anomalousRanges).length > 0;
     advWrap.style.display = isBeta ? 'none' : ''; // hide advanced settings for beta charts
+    const _showWb = (isLine || isPeriodic) && !state.historicMode;
+    document.getElementById('wetbulb-adv-wrap').style.display = _showWb ? '' : 'none';
     document.querySelectorAll('.substrat-only').forEach(el => { el.style.display = (showSubstrat && !state.compareEnabled) ? '' : 'none'; });
     const advBody = document.getElementById('advanced-settings-body');
     advBody.style.display = (advBody.dataset.open === '1') ? 'block' : 'none';
@@ -3863,6 +3946,11 @@ function setupStaticListeners() {
   document.getElementById('cb-exclude-anomalous').addEventListener('change', e => {
     state.excludeAnomalous = e.target.checked; updatePlot();
   });
+  document.getElementById('cb-wetbulb').addEventListener('change', e => {
+    state.wetBulbEnabled = e.target.checked;
+    document.querySelectorAll('.wb-sub-label').forEach(el => { el.style.display = e.target.checked ? '' : 'none'; });
+    updatePlot();
+  });
   document.getElementById('cb-compare').addEventListener('change', e => {
     state.compareEnabled = e.target.checked;
     document.getElementById('compare-body').style.display = state.compareEnabled ? 'block' : 'none';
@@ -4039,6 +4127,7 @@ function setupStaticListeners() {
       // Always: show series checkboxes
       buildHistoricSeriesCheckboxes();
       document.getElementById('historic-series-checkboxes').style.display = '';
+      document.getElementById('wetbulb-adv-wrap').style.display = 'none';
     } else {
       // Restore saved states from before entering historic mode
       if (savedBeforeHistoric) {
@@ -4084,6 +4173,8 @@ function setupStaticListeners() {
       document.getElementById('historic-series-checkboxes').innerHTML = '';
       state.selectedHistoricSeries = new Set();
       savedBeforeHistoric = null;
+      const _wbChartOk = state.chartType === 'line' || state.chartType === 'periodic';
+      document.getElementById('wetbulb-adv-wrap').style.display = _wbChartOk ? '' : 'none';
     }
     rebuildYearDropdown(); _zoomReset = true; updatePlot();
   });
@@ -4573,21 +4664,15 @@ function renderLineGraph() {
     const namePrefix = iter.setLabel ? '[' + iter.setLabel + '] ' : '';
 
     for (const loggerId of m.loggers) {
-      if (!iter.selectedLoggers.has(loggerId)) continue;
-      if (!lineSet.has(loggerId)) continue;
+      const _mainSelected = iter.selectedLoggers.has(loggerId) && lineSet.has(loggerId);
+      const _wbWanted = state.wetBulbEnabled && state.wetBulbLoggers.has(loggerId) && lineSet.has(loggerId) && state.selectedMetrics.has('temperature');
+      if (!_mainSelected && !_wbWanted) continue;
       const series = dataset().series[loggerId];
       if (!series) continue;
       let filtered = filterSeries(series, start, end);
       if (!filtered) continue;
       filtered = applyAnomalousFilter(filtered, loggerId);
       if (!filtered) continue;
-
-      // Track actual data bounds
-      if (filtered.timestamps.length) {
-        const first = filtered.timestamps[0], last = filtered.timestamps[filtered.timestamps.length - 1];
-        if (first < dataMinMs) dataMinMs = first;
-        if (last > dataMaxMs) dataMaxMs = last;
-      }
 
       const color = iter.colorMap[loggerId] || m.colors[loggerId];
       const isExtTT = extSet.has(loggerId) && m.loggerSources[loggerId] === 'TinyTag';
@@ -4600,16 +4685,55 @@ function renderLineGraph() {
           : source === 'Omnisense' ? ' <span style="color:#aaa">(5-min avg.)</span>'
           : '') : '';
       const lgGroup = iter.setLabel ? 'compare_s' + iter.setIndex : loggerId;
-      let firstMetric = true;
-      for (const metric of ['temperature','humidity']) {
-        if (!state.selectedMetrics.has(metric)) continue;
-        const {x, y} = buildGapArrays(filtered.timestamps, filtered[metric]);
-        for (const v of y) { if (v != null) { if (v < yMin) yMin = v; if (v > yMax) yMax = v; } }
-        const unit = metric === 'temperature' ? '°C' : '%RH';
-        traces.push({x, y, type:'scatter', mode:'lines', name: name + meteoSuffix(loggerId) + omniSuffix(source) + freqLabel, line:{color, width:1.4},
-          opacity:0.35, connectgaps:false, legendgroup:lgGroup, showlegend:(!iter.setLabel && firstMetric), meta:{loggerId},
-          hovertemplate:`${name}<br>%{x|%d/%m/%Y %H:%M}<br>${metric==='temperature'?t('tempOnly'):t('humidOnly')}: %{y:.1f}${unit}<br>${t('source')}: ${source}${idLabel}<extra></extra>`});
-        firstMetric = false;
+      const _wbAnnotation = (_wbWanted && _mainSelected) ? ' <span style="color:#aaa">+ ' + t('wetBulbSuffix') + '</span>' : '';
+
+      if (_mainSelected) {
+        // Track actual data bounds
+        if (filtered.timestamps.length) {
+          const first = filtered.timestamps[0], last = filtered.timestamps[filtered.timestamps.length - 1];
+          if (first < dataMinMs) dataMinMs = first;
+          if (last > dataMaxMs) dataMaxMs = last;
+        }
+        let firstMetric = true;
+        for (const metric of ['temperature','humidity']) {
+          if (!state.selectedMetrics.has(metric)) continue;
+          const {x, y} = buildGapArrays(filtered.timestamps, filtered[metric]);
+          for (const v of y) { if (v != null) { if (v < yMin) yMin = v; if (v > yMax) yMax = v; } }
+          const unit = metric === 'temperature' ? '°C' : '%RH';
+          traces.push({x, y, type:'scatter', mode:'lines', name: name + meteoSuffix(loggerId) + omniSuffix(source) + freqLabel + (firstMetric ? _wbAnnotation : ''), line:{color, width:1.4},
+            opacity:0.35, connectgaps:false, legendgroup:lgGroup, showlegend:(!iter.setLabel && firstMetric), meta:{loggerId},
+            hovertemplate:`${name}<br>%{x|%d/%m/%Y %H:%M}<br>${metric==='temperature'?t('tempOnly'):t('humidOnly')}: %{y:.1f}${unit}<br>${t('source')}: ${source}${idLabel}<extra></extra>`});
+          firstMetric = false;
+        }
+      }
+
+      // Wet bulb trace (dashed, same colour) — renders even if main logger is deselected
+      if (_wbWanted) {
+        const wbY = filtered.timestamps.map((_, i) => {
+          const T = filtered.temperature[i], RH = filtered.humidity[i];
+          if (T == null || RH == null) return null;
+          const _wb = stullWetBulb(T, RH);
+          return _wb != null ? +_wb.toFixed(2) : null;
+        });
+        const {x: wbX, y: wbYArr} = buildGapArrays(filtered.timestamps, wbY);
+        for (const v of wbYArr) { if (v != null) { if (v < yMin) yMin = v; if (v > yMax) yMax = v; } }
+        // Ensure data bounds are set even when parent logger is deselected
+        if (filtered.timestamps.length) {
+          const first = filtered.timestamps[0], last = filtered.timestamps[filtered.timestamps.length - 1];
+          if (first < dataMinMs) dataMinMs = first;
+          if (last > dataMaxMs) dataMaxMs = last;
+        }
+        const wbName = name + ' ' + t('wetBulbSuffix');
+        const _dispName = ln(loggerId);
+        const _srcLabel = (source ? ' · ' + source : '') + idLabel;
+        const _tSrc = _dispName + _srcLabel, _rhSrc = _dispName + _srcLabel;
+        const _srcHover = _tSrc === _rhSrc
+          ? `${t('source')}: ${_tSrc}`
+          : `${t('tempOnly')}: ${_tSrc}<br>${t('humidOnly')}: ${_rhSrc}`;
+        traces.push({x: wbX, y: wbYArr, type:'scatter', mode:'lines',
+          name: wbName, line:{color, width:1.4, dash:'dash'},
+          opacity:0.35, connectgaps:false, legendgroup: _mainSelected ? lgGroup : lgGroup + '_wb', showlegend: !_mainSelected && !iter.setLabel, meta:{loggerId},
+          hovertemplate:`${wbName}<br>%{x|%d/%m/%Y %H:%M}<br>${t('wetBulbHover')}: %{y:.1f}°C<br>${_srcHover}<extra></extra>`});
       }
     }
 
@@ -6630,9 +6754,11 @@ function renderPeriodicAverages() {
 
       const tempSum = new Float64Array(nCats), tempN = new Int32Array(nCats);
       const humSum = new Float64Array(nCats), humN = new Int32Array(nCats);
+      const wbSum  = new Float64Array(nCats), wbN  = new Int32Array(nCats);
       const secKey = extSet.has(loggerId) ? 'external' : roomSet.has(loggerId) ? 'room' : 'structural';
       const sec = sections[secKey];
       const contributeToAvg = !state.compareEnabled && state.lockedAvg[secKey] === null;
+      const doWb = state.wetBulbEnabled && state.wetBulbLoggers.has(loggerId);
 
       for (let i = 0; i < filtered.timestamps.length; i++) {
         const ci = getCategoryIdx(filtered.timestamps[i]);
@@ -6640,6 +6766,7 @@ function renderPeriodicAverages() {
         const t = filtered.temperature[i], h = filtered.humidity[i];
         if (t != null) { tempSum[ci] += t; tempN[ci]++; if (contributeToAvg) { sec.tempSum[ci] += t; sec.tempN[ci]++; } }
         if (h != null) { humSum[ci] += h; humN[ci]++; if (contributeToAvg) { sec.humSum[ci] += h; sec.humN[ci]++; } }
+        if (doWb && t != null && h != null) { const _wb = stullWetBulb(t, h); if (_wb != null) { wbSum[ci] += _wb; wbN[ci]++; } }
       }
 
       const color = iter.colorMap[loggerId] || m.colors[loggerId];
@@ -6649,6 +6776,7 @@ function renderPeriodicAverages() {
       const idLabel = (loggerId === 'govee' || isOpenMeteo(loggerId)) ? '' : ' \u00b7 ID: ' + loggerId;
       const lgGroup = iter.setLabel ? 'compare_s' + iter.setIndex : loggerId;
       let firstMetric = true;
+      const _wbAnnotation = doWb ? ' <span style="color:#aaa">+ ' + t('wetBulbSuffix') + '</span>' : '';
 
       for (const metric of ['temperature', 'humidity']) {
         if (!state.selectedMetrics.has(metric)) continue;
@@ -6675,7 +6803,7 @@ function renderPeriodicAverages() {
         const hoverTpl = namePrefix + ln(loggerId) + '<br>%{text}<br>' + metricName + ': %{y:.1f}' + unit + '<br>' + t('source') + ': ' + source + idLabel + '<extra></extra>';
         const trace = {
           x, y, text: txt, type: 'scatter',
-          name: logName + meteoSuffix(loggerId) + omniSuffix(source),
+          name: logName + meteoSuffix(loggerId) + omniSuffix(source) + (firstMetric ? _wbAnnotation : ''),
           legendgroup: lgGroup, showlegend: (!iter.setLabel && firstMetric),
           meta: {loggerId},
           hovertemplate: hoverTpl,
@@ -6698,6 +6826,26 @@ function renderPeriodicAverages() {
         warningInfos.push({loggerId, name: ln(loggerId), metric, pct: singlePct});
       }
     }
+      // Wet bulb periodic average trace
+      if (doWb && state.selectedMetrics.has('temperature') && !isClimateOsc) {
+        const wbX = [], wbYArr = [], wbTxt = [];
+        let wbAny = false;
+        for (let ci = 0; ci < nCats; ci++) {
+          wbX.push(xVal(ci)); wbTxt.push(categoryLabels[ci]);
+          if (wbN[ci] > 0) { wbYArr.push(+(wbSum[ci] / wbN[ci]).toFixed(2)); wbAny = true; hasAnyData = true; }
+          else wbYArr.push(null);
+        }
+        if (wbAny) {
+          const wbName = namePrefix + ln(loggerId) + ' ' + t('wetBulbSuffix');
+          traces.push({
+            x: wbX, y: wbYArr, text: wbTxt, type: 'scatter', mode: 'lines+markers',
+            name: wbName, legendgroup: lgGroup, showlegend: false,
+            meta: {loggerId},
+            line: {color, width: 2, dash: 'dash'}, marker: {size: 5}, connectgaps: false,
+            hovertemplate: wbName + '<br>%{text}<br>' + t('wetBulbHover') + ': %{y:.1f}°C<extra></extra>',
+          });
+        }
+      }
   }
 
     // In compare mode, add a single legend entry per set
@@ -7069,11 +7217,12 @@ requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart',
   icon.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
 })();
 
-// Sidebar info tooltips — Compare Mode, Long-Term Mode, comfort band, running mean
+// Sidebar info tooltips — Compare Mode, Long-Term Mode, Wet Bulb, comfort band, running mean
 (function() {
   const items = [
     { iconId: 'compare-info-icon', tipId: 'compare-info-tip', key: 'infoCompare' },
     { iconId: 'longterm-info-icon', tipId: 'longterm-info-tip', key: 'infoLongTerm' },
+    { iconId: 'wetbulb-info-icon', tipId: 'wetbulb-info-tip', key: 'infoWetBulb' },
     { iconId: 'en16798-info-icon', tipId: 'en16798-info-tip', key: 'infoComfortBand', hasLink: true },
     { iconId: 'rm-xaxis-info-icon', tipId: 'rm-xaxis-info-tip', key: 'infoRunningMean', hasLink: true },
   ];
