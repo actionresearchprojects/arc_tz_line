@@ -2556,11 +2556,12 @@ function renderCompareSets() {
     }
 
     // Add sections (external, room, structural) with per-section buttons
-    function addCmpSection(title, ids) {
+    function addCmpSection(title, ids, titleI18nKey) {
       if (ids.length === 0) return;
       const titleEl = document.createElement('div');
       titleEl.className = 'sub-section-title';
       titleEl.textContent = title;
+      if (titleI18nKey) titleEl.dataset.i18n = titleI18nKey;
       loggerWrap.appendChild(titleEl);
       // Per-section buttons: All / None / TinyTag / Omnisense
       const secBtnRow = document.createElement('div');
@@ -2605,14 +2606,14 @@ function renderCompareSets() {
     if (isComfort) {
       const comfortRoomIds = (m.comfortLoggers || m.roomLoggers || []).filter(id => (m.roomLoggers || []).includes(id));
       const comfortStructIds = (m.comfortLoggers || []).filter(id => (m.structuralLoggers || []).includes(id));
-      addCmpSection(t('sectionRoom'), comfortRoomIds);
-      addCmpSection(t('sectionStructural'), comfortStructIds);
+      addCmpSection(t('sectionRoom'), comfortRoomIds, 'sectionRoom');
+      addCmpSection(t('sectionStructural'), comfortStructIds, 'sectionStructural');
     } else {
-      if (m.externalLoggers && m.externalLoggers.length > 0) addCmpSection(t('sectionExternal'), m.externalLoggers);
+      if (m.externalLoggers && m.externalLoggers.length > 0) addCmpSection(t('sectionExternal'), m.externalLoggers, 'sectionExternal');
       const roomLoggers = m.loggers.filter(id => !extSet.has(id) && roomSet.has(id) && lineSet.has(id));
       const midLoggers = m.loggers.filter(id => !extSet.has(id) && !roomSet.has(id) && lineSet.has(id));
-      addCmpSection(t('sectionRoom'), roomLoggers);
-      addCmpSection(t('sectionStructural'), midLoggers);
+      addCmpSection(t('sectionRoom'), roomLoggers, 'sectionRoom');
+      addCmpSection(t('sectionStructural'), midLoggers, 'sectionStructural');
     }
 
     // Cross-dataset loggers (other buildings)
@@ -2630,10 +2631,12 @@ function renderCompareSets() {
         const crossSet = cs.selectedCrossLoggers[otherKey];
         // Divider
         const hr = document.createElement('hr'); hr.className = 'divider'; loggerWrap.appendChild(hr);
-        const otherName = otherKey === 'house5' ? t('house5') : otherKey === 'dauda' ? t('schoolteacher') : otherKey;
+        const otherNameKey = otherKey === 'house5' ? 'house5' : otherKey === 'dauda' ? 'schoolteacher' : null;
+        const otherName = otherNameKey ? t(otherNameKey) : otherKey;
         const titleEl = document.createElement('div');
         titleEl.className = 'sub-section-title';
         titleEl.textContent = otherName;
+        if (otherNameKey) titleEl.dataset.i18n = otherNameKey;
         loggerWrap.appendChild(titleEl);
         // All/None buttons
         const secBtnRow = document.createElement('div');
@@ -3254,11 +3257,12 @@ function loadDataset(key) {
       container.appendChild(wbWrap);
     }
   }
-  function addSection(container, stateSet, title, ids, extraBtns, extraLabelFn, sectionKey, skipWb) {
+  function addSection(container, stateSet, title, ids, extraBtns, extraLabelFn, sectionKey, skipWb, titleI18nKey) {
     if (ids.length === 0) return;
     const titleEl = document.createElement('div');
     titleEl.className = 'sub-section-title';
     titleEl.textContent = title;
+    if (titleI18nKey) titleEl.dataset.i18n = titleI18nKey;
     container.appendChild(titleEl);
     const btnRow = document.createElement('div');
     btnRow.style.cssText = 'display:flex;gap:4px;margin-bottom:4px;flex-wrap:wrap;';
@@ -3357,19 +3361,19 @@ function loadDataset(key) {
   state.wetBulbLoggers = new Set();
   // External section
   if (m.externalLoggers && m.externalLoggers.length > 0) {
-    addSection(loggerDiv, state.selectedLoggers, t('sectionExternal'), m.externalLoggers, null, extTTLabel, 'external');
+    addSection(loggerDiv, state.selectedLoggers, t('sectionExternal'), m.externalLoggers, null, extTTLabel, 'external', false, 'sectionExternal');
     addSectionAvgCheckbox(loggerDiv, 'external', t('sectionExternal'));
     const hr = document.createElement('hr'); hr.className = 'divider'; loggerDiv.appendChild(hr);
   }
   // Room loggers section
   if (roomLoggers.length > 0) {
-    addSection(loggerDiv, state.selectedLoggers, t('sectionRoom'), roomLoggers, mkSourceBtns(loggerDiv, state.selectedLoggers, roomLoggers), null, 'room');
+    addSection(loggerDiv, state.selectedLoggers, t('sectionRoom'), roomLoggers, mkSourceBtns(loggerDiv, state.selectedLoggers, roomLoggers), null, 'room', false, 'sectionRoom');
     addSectionAvgCheckbox(loggerDiv, 'room', t('sectionRoom'));
   }
   // Structural section
   if (midLoggers.length > 0) {
     if (roomLoggers.length > 0) { const hr = document.createElement('hr'); hr.className = 'divider'; loggerDiv.appendChild(hr); }
-    addSection(loggerDiv, state.selectedLoggers, t('sectionStructural'), midLoggers, mkSourceBtns(loggerDiv, state.selectedLoggers, midLoggers), null, 'structural');
+    addSection(loggerDiv, state.selectedLoggers, t('sectionStructural'), midLoggers, mkSourceBtns(loggerDiv, state.selectedLoggers, midLoggers), null, 'structural', false, 'sectionStructural');
     addSectionAvgCheckbox(loggerDiv, 'structural', t('sectionStructural'));
   }
   if (roomLoggers.length === 0 && midLoggers.length === 0) {
@@ -3382,10 +3386,10 @@ function loadDataset(key) {
   roomDiv.innerHTML = '';
   const comfortRoomIds = (m.comfortLoggers || m.roomLoggers).filter(id => (m.roomLoggers || []).includes(id));
   const comfortStructIds = (m.comfortLoggers || []).filter(id => (m.structuralLoggers || []).includes(id));
-  addSection(roomDiv, state.selectedRoomLoggers, t('sectionRoom'), comfortRoomIds, mkSourceBtns(roomDiv, state.selectedRoomLoggers, comfortRoomIds), null, null, true);
+  addSection(roomDiv, state.selectedRoomLoggers, t('sectionRoom'), comfortRoomIds, mkSourceBtns(roomDiv, state.selectedRoomLoggers, comfortRoomIds), null, null, true, 'sectionRoom');
   if (comfortStructIds.length > 0) {
     if (comfortRoomIds.length > 0) { const hr = document.createElement('hr'); hr.className = 'divider'; roomDiv.appendChild(hr); }
-    addSection(roomDiv, state.selectedRoomLoggers, 'Structural', comfortStructIds, mkSourceBtns(roomDiv, state.selectedRoomLoggers, comfortStructIds), null, null, true);
+    addSection(roomDiv, state.selectedRoomLoggers, t('sectionStructural'), comfortStructIds, mkSourceBtns(roomDiv, state.selectedRoomLoggers, comfortStructIds), null, null, true, 'sectionStructural');
   }
 
   // Show historic section if data available
@@ -3808,6 +3812,7 @@ function setupStaticListeners() {
     const _loggerDiv = document.getElementById('logger-checkboxes');
     _loggerDiv.querySelectorAll('.periodic-avg-cb').forEach(el => { el.style.display = isPeriodic ? '' : 'none'; });
     _loggerDiv.querySelectorAll('.lock-btn').forEach(el => { el.style.display = isPeriodic ? 'inline-block' : 'none'; });
+    _loggerDiv.querySelectorAll('.wb-sub-label').forEach(el => { el.style.display = state.wetBulbEnabled ? '' : 'none'; });
     if (isBeta) {
       // already handled above
     } else if (isPeriodic) {
