@@ -52,6 +52,7 @@ OPENMETEO_LEGACY_ID = "External (Open-Meteo)"  # backward-compat with old single
 DATASETS = {
     "house5": {
         "label": "ARC Tanzania - Aladdin's Cave",
+        "label_sw": "ARC Tanzania - Pango la Aladdin",
         "folder": Path("data/house5"),
         "skip_rows": 350,
         "external_logger": OPENMETEO_HISTORICAL_ID,
@@ -108,6 +109,7 @@ DATASETS = {
     },
     "schoolteacher": {
         "label": "Schoolteacher's House",
+        "label_sw": "Nyumba ya Mwalimu",
         "folder": Path("data/schoolteacher"),
         "skip_rows": 7,
         "external_logger": OPENMETEO_HISTORICAL_ID,
@@ -121,6 +123,7 @@ DATASETS = {
         },
         # Per-dataset name overrides (759498 is "Bedroom 3 below metal roof" globally but "Bedroom 1" here)
         "logger_name_overrides": {"759498": "Bedroom 1"},
+        "logger_name_overrides_sw": {"759498": "Chumba cha kulala 1"},
     },
 }
 
@@ -1021,7 +1024,9 @@ def build_dataset_json(key, df, logger_overrides=None):
                     break
             color_map[om_key] = om_color
     name_overrides = cfg.get("logger_name_overrides", {})
+    name_overrides_sw = cfg.get("logger_name_overrides_sw", {})
     logger_names = {l: name_overrides.get(l, LOGGER_NAMES.get(l, l)) for l in unique_loggers}
+    logger_names_sw = {l: name_overrides_sw.get(l, LOGGER_NAMES_SW.get(l, logger_names[l])) for l in unique_loggers}
     logger_sources = {l: LOGGER_SOURCES.get(l, "Unknown") for l in unique_loggers}
 
     # External data date range (for stale-data warning)
@@ -1094,9 +1099,10 @@ def build_dataset_json(key, df, logger_overrides=None):
     return {
         "meta": {
             "label":        cfg["label"],
+            "labelSw":      cfg.get("label_sw", cfg["label"]),
             "loggers":      unique_loggers,
             "loggerNames":  logger_names,
-            "loggerNamesSw": {k: LOGGER_NAMES_SW.get(k, v) for k, v in logger_names.items()},
+            "loggerNamesSw": logger_names_sw,
             "loggerSources": logger_sources,
             "externalLogger": default_external_logger,
             "externalLoggers": [l for l in unique_loggers if l in ext_sensor_set],
@@ -1392,7 +1398,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
           <label class="cb-label" id="anomalous-label" style="display:none"><input type="checkbox" id="cb-exclude-anomalous"> Exclude anomalous data</label>
           <div id="wetbulb-adv-wrap" style="display:none">
             <hr class="divider">
-            <label class="cb-label"><input type="checkbox" id="cb-wetbulb"> Wet Bulb (Tw) <span class="info-i" id="wetbulb-info-icon">i</span></label>
+            <label class="cb-label"><input type="checkbox" id="cb-wetbulb"> <span class="wb-adv-label">Wet Bulb (Tw)</span> <span class="info-i" id="wetbulb-info-icon">i</span></label>
             <div class="info-tip-fixed" id="wetbulb-info-tip"></div>
           </div>
           <hr class="divider" id="compare-divider">
@@ -1415,17 +1421,17 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       <hr class="divider" id="weather-divider" style="display:none">
       <div class="section" id="weather-section" style="display:none">
         <div class="section-title" data-i18n="weatherStation">Weather Station</div>
-        <div class="ws-group-label">Wind</div>
-        <label class="cb-label"><input type="checkbox" class="cb-weather" data-wv="avg_wind_kph"> Avg Wind (kph)</label>
-        <label class="cb-label"><input type="checkbox" class="cb-weather" data-wv="peak_wind_kph"> Peak Wind (kph)</label>
-        <label class="cb-label"><input type="checkbox" class="cb-weather" data-wv="wind_dir"> Wind Direction (&deg;)</label>
-        <div class="ws-group-label">Solar</div>
-        <label class="cb-label"><input type="checkbox" class="cb-weather" data-wv="solar_wm2"> Solar Radiation (W/m&sup2;)</label>
-        <div class="ws-group-label">Rainfall</div>
-        <label class="cb-label"><input type="checkbox" class="cb-weather" data-wv="precip_rate_mmh"> Rainfall Rate (mm/h)</label>
-        <label class="cb-label"><input type="checkbox" class="cb-weather" data-wv="precip_total_mm"> Rainfall Cumulative (mm)</label>
-        <div class="ws-group-label">CO2</div>
-        <label class="cb-label"><input type="checkbox" class="cb-weather" data-wv="co2_ppm"> CO2 (ppm)</label>
+        <div class="ws-group-label" data-i18n="wsWindGroup">Wind</div>
+        <label class="cb-label"><input type="checkbox" class="cb-weather" data-wv="avg_wind_kph"> <span class="ws-cb-label" data-wv-label="avg_wind_kph">Avg Wind (kph)</span></label>
+        <label class="cb-label"><input type="checkbox" class="cb-weather" data-wv="peak_wind_kph"> <span class="ws-cb-label" data-wv-label="peak_wind_kph">Peak Wind (kph)</span></label>
+        <label class="cb-label"><input type="checkbox" class="cb-weather" data-wv="wind_dir"> <span class="ws-cb-label" data-wv-label="wind_dir">Wind Direction (&deg;)</span></label>
+        <div class="ws-group-label" data-i18n="wsSolarGroup">Solar</div>
+        <label class="cb-label"><input type="checkbox" class="cb-weather" data-wv="solar_wm2"> <span class="ws-cb-label" data-wv-label="solar_wm2">Solar Radiation (W/m&sup2;)</span></label>
+        <div class="ws-group-label" data-i18n="wsRainfallGroup">Rainfall</div>
+        <label class="cb-label"><input type="checkbox" class="cb-weather" data-wv="precip_rate_mmh"> <span class="ws-cb-label" data-wv-label="precip_rate_mmh">Rainfall Rate (mm/h)</span></label>
+        <label class="cb-label"><input type="checkbox" class="cb-weather" data-wv="precip_total_mm"> <span class="ws-cb-label" data-wv-label="precip_total_mm">Rainfall Cumulative (mm)</span></label>
+        <div class="ws-group-label" data-i18n="wsCO2Group">CO2</div>
+        <label class="cb-label"><input type="checkbox" class="cb-weather" data-wv="co2_ppm"> <span class="ws-cb-label" data-wv-label="co2_ppm">CO2 (ppm)</span></label>
       </div>
       <hr class="divider">
       <div class="section">
@@ -1449,7 +1455,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
         <label class="cb-label"><input type="checkbox" id="cb-historic-mode"> <b>Long-Term Mode</b> <span class="info-i" id="longterm-info-icon">i</span></label>
         <div class="info-tip-fixed" id="longterm-info-tip"></div>
         <div id="historic-series-checkboxes" style="display:none;margin-top:4px"></div>
-        <div style="font-size:10px;color:#888;margin-top:4px;line-height:1.3">Long-term historic and projected future data generated from <a href="https://atlas.climate.copernicus.eu/atlas" target="_blank" style="color:#6a9fd8">Copernicus Climate Change Service</a> information 2026.</div>
+        <div style="font-size:10px;color:#888;margin-top:4px;line-height:1.3"><span data-i18n="longTermDataNote">Long-term historic and projected future data generated from</span> <a href="https://atlas.climate.copernicus.eu/atlas" target="_blank" style="color:#6a9fd8">Copernicus Climate Change Service</a> information 2026.</div>
       </div>
       <hr class="divider">
       <div id="periodic-completeness" class="hidden">
@@ -1573,7 +1579,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       </div>
     </div>
     <div id="ext-data-warning" class="hidden" style="background:#fff3cd;border:1px solid #ffc107;border-radius:4px;padding:6px 10px;margin:4px 10px;font-size:12px;color:#856404;flex-shrink:0;">
-      &#9888; Open-Meteo external temperature data only covers to <b id="ext-data-end"></b>. Update <code>open-meteo</code> CSV to see adaptive comfort for recent dates.
+      &#9888; <span id="ext-data-warning-pre">Open-Meteo external temperature data only covers to </span><b id="ext-data-end"></b><span id="ext-data-warning-post">. Update <code>open-meteo</code> CSV to see adaptive comfort for recent dates.</span>
     </div>
     <div id="chart"></div>
     <span class="info-i" id="rm-xaxis-info-icon" style="display:none;position:fixed;z-index:60;">i</span>
@@ -1814,9 +1820,35 @@ const I18N = {
     infoComfortBand: 'The green band shows the range of indoor temperatures considered comfortable, based on the ASHRAE-55 adaptive comfort standard. The default model ignores humidity, which can overestimate overheating by around 30%. The Vellei et al. options use <a href="https://doi.org/10.1016/j.buildenv.2017.08.005" target="_blank" style="color:#6a9fd8">humidity-aware comfort bands</a> derived from global field study data, better reflecting how people adapt in humid climates.',
     infoRunningMean: 'The running mean is an exponentially weighted average of past outdoor temperatures, where recent days count most. It captures how people acclimatise to changing weather: when outdoor temperatures have been high, occupants can tolerate higher indoor temperatures. <a href="https://actionresearchprojects.net/explainers/running-mean" target="_blank" style="color:#6a9fd8">Read more →</a>',
     wetBulb:       'Wet Bulb',
+    wetBulbAdv:    'Wet Bulb (Tw)',
     wetBulbSuffix: '(Wet bulb)',
     wetBulbHover:  'Wet bulb (Tw)',
     infoWetBulb:   'Wet bulb temperature (Tw) is the lowest temperature achievable by evaporative cooling, a key heat stress indicator. When Tw exceeds 32°C, cooling by sweating becomes difficult; above 35°C it is dangerous for prolonged exposure. Calculated using the Stull (2011) approximation, accurate to ±0.3°C in tropical conditions. Valid range: –20 to 50°C and 5–99% RH. Readings below 5% RH are shown as gaps; readings above 99% RH (sensor saturation) are clamped to 99% before calculating. Shown as a dashed line in the same colour as the parent sensor.',
+    // Weather station section
+    wsWindGroup:     'Wind',
+    wsSolarGroup:    'Solar',
+    wsRainfallGroup: 'Rainfall',
+    wsCO2Group:      'CO₂',
+    wsAvgWind:       'Avg Wind (kph)',
+    wsPeakWind:      'Peak Wind (kph)',
+    wsWindDir:       'Wind Direction (°)',
+    wsSolarRad:      'Solar Radiation (W/m²)',
+    wsRainRate:      'Rainfall Rate (mm/h)',
+    wsRainTotal:     'Rainfall Cumulative (mm)',
+    wsCO2:           'CO₂ (ppm)',
+    // Weather station chart-legend short labels
+    wsAvgWindShort:   'Avg Wind',
+    wsPeakWindShort:  'Peak Wind',
+    wsWindDirShort:   'Wind Dir',
+    wsSolarShort:     'Solar',
+    wsRainRateShort:  'Rain Rate',
+    wsRainTotalShort: 'Rain Total',
+    wsCO2Short:       'CO₂',
+    // Misc UI text
+    longTermDataNote: 'Long-term historic and projected future data generated from',
+    extDataWarningPre: 'Open-Meteo external temperature data only covers to ',
+    extDataWarningPost: '. Update <code>open-meteo</code> CSV to see adaptive comfort for recent dates.',
+    historicTitle: 'Dar es Salaam – Historic and Projected Temperatures',
   },
   sw: {
     title: "ARC Tanzania - Aladdin's Cave",
@@ -1874,12 +1906,10 @@ const I18N = {
     betaDecrement: 'Kipengele cha Kupunguza',
     betaLag: 'Ucheleweshaji wa Joto',
     betaQuality: 'Ubora wa Data',
-    betaCrossBuild: 'Kulinganisha Majengo',
     betaDiffTitle: 'Tofauti ya Joto Ndani\u2013Nje',
     betaDecrementTitle: 'Kipengele cha Kupunguza kwa Chumba',
     betaLagTitle: 'Ucheleweshaji wa Joto kwa Chumba',
     betaQualityTitle: 'Ubora wa Data na Ugunduzi wa Kasoro',
-    betaCrossBuildTitle: 'Kulinganisha Majengo',
     betaDiffAxis: 'Tofauti ya Joto (\u00b0C)',
     betaDecrementAxis: 'Kipengele cha Kupunguza',
     betaLagAxis: 'Ucheleweshaji (masaa)',
@@ -1893,7 +1923,7 @@ const I18N = {
     belowUpper: 'Chini ya mpaka wa juu',
     withinComfort: 'Ndani ya eneo la starehe',
     aboveLower: 'Juu ya mpaka wa chini',
-    house5: 'House 5',
+    house5: 'Nyumba 5',
     schoolteacher: 'Nyumba ya Mwalimu',
     sectionExternal: 'Nje',
     sectionRoom: 'Chumba',
@@ -1952,9 +1982,35 @@ const I18N = {
     infoComfortBand: 'Bendi ya kijani inaonyesha kiwango cha joto la ndani kinachochukuliwa kuwa na starehe, kulingana na kiwango cha ASHRAE-55. Mtindo wa kawaida unapuuza unyevunyevu, ambao unaweza kukadiri kupita kiasi kwa karibu 30%. Chaguo za Vellei et al. zinatumia <a href="https://doi.org/10.1016/j.buildenv.2017.08.005" target="_blank" style="color:#6a9fd8">bendi za starehe zinazozingatia unyevunyevu</a> kutoka data ya utafiti wa kimataifa.',
     infoRunningMean: 'Wastani wa running mean ni wastani unaopimwa kwa nguvu zaidi kwa siku za hivi karibuni za joto la nje. Inaonyesha jinsi watu wanavyozoea hali ya hewa: joto la nje limekuwa juu, wenyeji wanastahimili joto zaidi ndani, kwa hivyo bendi ya starehe inasogea kulia. <a href="https://actionresearchprojects.net/explainers/running-mean" target="_blank" style="color:#6a9fd8">Soma zaidi →</a>',
     wetBulb:       'Joto la Mvua (Tw)',
+    wetBulbAdv:    'Joto la Mvua (Tw)',
     wetBulbSuffix: '(Joto la mvua)',
     wetBulbHover:  'Joto la mvua (Tw)',
     infoWetBulb:   'Joto la mvua (Tw) ni joto la chini kabisa linaloweza kufikiwa kwa kupoa kwa uvukizi, kiashiria muhimu cha msongo wa joto. Imehesabiwa kwa kutumia mkaribisho wa Stull (2011). Masafa halali: –20 hadi 50°C na 5–99% RH. Maadili chini ya 5% RH yanaonyeshwa kama mapengo; maadili zaidi ya 99% RH (kipimo kikifikia kikomo chake) yanafupishwa hadi 99% kabla ya kuhesabu. Inaonyeshwa kama mstari wa nukta katika rangi ile ile ya sensor.',
+    // Weather station section
+    wsWindGroup:     'Upepo',
+    wsSolarGroup:    'Mwanga wa Jua',
+    wsRainfallGroup: 'Mvua',
+    wsCO2Group:      'CO₂',
+    wsAvgWind:       'Wastani wa Upepo (kph)',
+    wsPeakWind:      'Kilele cha Upepo (kph)',
+    wsWindDir:       'Mwelekeo wa Upepo (°)',
+    wsSolarRad:      'Mng’aro wa Jua (W/m²)',
+    wsRainRate:      'Kasi ya Mvua (mm/h)',
+    wsRainTotal:     'Jumla ya Mvua (mm)',
+    wsCO2:           'CO₂ (ppm)',
+    // Weather station chart-legend short labels
+    wsAvgWindShort:   'Wastani Upepo',
+    wsPeakWindShort:  'Kilele Upepo',
+    wsWindDirShort:   'Mwelekeo Upepo',
+    wsSolarShort:     'Jua',
+    wsRainRateShort:  'Kasi ya Mvua',
+    wsRainTotalShort: 'Jumla ya Mvua',
+    wsCO2Short:       'CO₂',
+    // Misc UI text
+    longTermDataNote: 'Data ya kihistoria ya muda mrefu na utabiri wa siku zijazo imeundwa kutoka',
+    extDataWarningPre: 'Data ya joto la nje ya Open-Meteo inafika hadi tu ',
+    extDataWarningPost: '. Sasisha CSV ya <code>open-meteo</code> ili kuona starehe ya kubadilika kwa tarehe za karibuni.',
+    historicTitle: 'Dar es Salaam – Joto la Kihistoria na Utabiri wa Siku Zijazo',
   }
 };
 function t(key) { return (I18N[currentLang] || I18N.en)[key] || I18N.en[key] || key; }
@@ -2134,6 +2190,30 @@ function applyLanguage() {
   });
   // Update wet bulb suffix text on sub-labels
   document.querySelectorAll('.wb-suffix').forEach(span => { span.textContent = ' ' + t('wetBulbSuffix'); });
+
+  // Wet bulb advanced-settings label
+  document.querySelectorAll('.wb-adv-label').forEach(span => { span.textContent = t('wetBulbAdv'); });
+
+  // Weather station checkbox labels (per-variable)
+  const WS_LABEL_KEYS = {
+    avg_wind_kph:    'wsAvgWind',
+    peak_wind_kph:   'wsPeakWind',
+    wind_dir:        'wsWindDir',
+    solar_wm2:       'wsSolarRad',
+    precip_rate_mmh: 'wsRainRate',
+    precip_total_mm: 'wsRainTotal',
+    co2_ppm:         'wsCO2',
+  };
+  document.querySelectorAll('.ws-cb-label[data-wv-label]').forEach(span => {
+    const k = WS_LABEL_KEYS[span.dataset.wvLabel];
+    if (k) span.textContent = t(k);
+  });
+
+  // External-data warning (banner above chart, only shown in comfort mode)
+  const extPre  = document.getElementById('ext-data-warning-pre');
+  const extPost = document.getElementById('ext-data-warning-post');
+  if (extPre)  extPre.textContent  = t('extDataWarningPre');
+  if (extPost) extPost.innerHTML   = t('extDataWarningPost');
 
   // Re-render chart with translated labels
   if (typeof updatePlot === 'function') {
@@ -4642,7 +4722,10 @@ function omniSuffix(source) {
 function meteoSuffix(id) {
   return isOpenMeteo(id) ? '<span style="color:#aaa"> (Open-Meteo)</span>' : '';
 }
-function dsLabel() { return dataset().meta.label; }
+function dsLabel() {
+  const m = dataset().meta;
+  return (currentLang === 'sw' && m.labelSw) ? m.labelSw : m.label;
+}
 // Converts a UTC epoch ms value to an EAT local time string (YYYY-MM-DD HH:MM:SS).
 // Plotly treats bare date strings as calendar-absolute (no browser-timezone conversion),
 // so this ensures timestamps always display in EAT regardless of the viewer's browser timezone.
@@ -4910,13 +4993,13 @@ function renderLineGraph() {
 
   // Weather station traces — one right-side y-axis per unit family (kph / ° / W/m² / mm / ppm)
   const WEATHER_DEFS = {
-    avg_wind_kph:   {color: '#1f77b4', label: 'Avg Wind',  unit: 'kph',       axis: 'y2'},
-    peak_wind_kph:  {color: '#4a9fd4', label: 'Peak Wind', unit: 'kph',       axis: 'y2'},
-    wind_dir:       {color: '#9b59b6', label: 'Wind Dir',  unit: '\u00b0',    axis: 'y3'},
-    solar_wm2:      {color: '#e6a817', label: 'Solar',     unit: 'W/m\u00b2', axis: 'y4'},
-    precip_rate_mmh:{color: '#27ae60', label: 'Rain Rate', unit: 'mm/h',      axis: 'y5'},
-    precip_total_mm:{color: '#1a7a42', label: 'Rain Total',unit: 'mm',        axis: 'y5'},
-    co2_ppm:        {color: '#e84393', label: 'CO\u2082',  unit: 'ppm',       axis: 'y6'},
+    avg_wind_kph:   {color: '#1f77b4', label: t('wsAvgWindShort'),   unit: 'kph',       axis: 'y2'},
+    peak_wind_kph:  {color: '#4a9fd4', label: t('wsPeakWindShort'),  unit: 'kph',       axis: 'y2'},
+    wind_dir:       {color: '#9b59b6', label: t('wsWindDirShort'),   unit: '\u00b0',    axis: 'y3'},
+    solar_wm2:      {color: '#e6a817', label: t('wsSolarShort'),     unit: 'W/m\u00b2', axis: 'y4'},
+    precip_rate_mmh:{color: '#27ae60', label: t('wsRainRateShort'),  unit: 'mm/h',      axis: 'y5'},
+    precip_total_mm:{color: '#1a7a42', label: t('wsRainTotalShort'), unit: 'mm',        axis: 'y5'},
+    co2_ppm:        {color: '#e84393', label: t('wsCO2Short'),       unit: 'ppm',       axis: 'y6'},
   };
   const AXIS_UNIT  = {y2: 'kph', y3: '\u00b0', y4: 'W/m\u00b2', y5: 'mm', y6: 'ppm'};
   const AXIS_COLOR = {y2: '#1f77b4', y3: '#9b59b6', y4: '#e6a817', y5: '#27ae60', y6: '#e84393'};
@@ -5034,7 +5117,7 @@ function renderLineGraph() {
   });
 
   const plotTitle = state.historicMode
-    ? 'Dar es Salaam \u2013 Historic and Projected Temperatures'
+    ? t('historicTitle')
     : dsl;
   const barTitle = plotTitle.replace(/&amp;/g, '&');
   return {traces, layout: {
