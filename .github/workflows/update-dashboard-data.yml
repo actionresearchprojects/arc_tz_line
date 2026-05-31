@@ -5,6 +5,10 @@ on:
     - cron: '0 6 * * *'  # daily at 06:00 UTC, after arc_tz_temp_humid (04:00) and arc_tz_weather (05:00)
   workflow_dispatch:
 
+concurrency:
+  group: update-dashboard
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -61,13 +65,35 @@ jobs:
         run: python build.py --auto
 
       - name: Commit and push if changed
+        id: push
+        continue-on-error: true
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "actions@users.noreply.github.com"
           git add data/omnisense/ data/openmeteo/ data/cycles/ index.html
           if git diff --cached --quiet; then
             echo "No changes to commit"
+            echo "changed=false" >> $GITHUB_OUTPUT
           else
             git commit -m "auto-update data $(date -u +%Y-%m-%d)"
-            git push
+            for i in 1 2 3 4 5; do
+              if git push; then
+                echo "Push succeeded on attempt $i"
+                echo "changed=true" >> $GITHUB_OUTPUT
+                exit 0
+              fi
+              echo "Push attempt $i failed; rebasing onto remote and retrying"
+              git pull --rebase origin main
+            done
+            echo "Push failed after 5 attempts"
+            exit 1
           fi
+
+      - name: Trigger main site sync
+        if: steps.push.outputs.changed == 'true'
+        run: |
+          curl -sf -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.MAIN_SITE_PAT }}" \
+            https://api.github.com/repos/actionresearchprojects/actionresearchprojects.github.io/dispatches \
+            -d '{"event_type":"sync-embedded","client_payload":{"source_repo":"arc_tz_line"}}'
