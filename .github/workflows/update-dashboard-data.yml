@@ -4,6 +4,8 @@ on:
   schedule:
     - cron: '0 6 * * *'  # daily at 06:00 UTC, after arc_tz_temp_humid (04:00) and arc_tz_weather (05:00)
   workflow_dispatch:
+  repository_dispatch:
+    types: [update-from-temp-humid]  # triggered by arc_tz_temp_humid after it pushes fresh data
 
 concurrency:
   group: update-dashboard
