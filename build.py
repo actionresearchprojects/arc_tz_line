@@ -4914,7 +4914,8 @@ function renderLineGraph() {
   // Compute primary y-axis range early — needed for the threshold paper-coordinate shape
   // so the threshold rect never touches the primary y-axis range and cannot disrupt overlaying axes.
   const yPad = 1.5;
-  const yLo = yMin !== Infinity ? Math.floor((yMin - yPad) / yPad) * yPad : undefined;
+  const rawYLo = yMin !== Infinity ? Math.floor((yMin - yPad) / yPad) * yPad : undefined;
+  const yLo = rawYLo !== undefined && yMin >= 0 ? Math.max(0, rawYLo) : rawYLo;
   const yHi = yMax !== -Infinity ? Math.ceil((yMax + yPad) / yPad) * yPad : undefined;
 
   // Expand bounds for historic/climate data before drawing threshold/season lines
