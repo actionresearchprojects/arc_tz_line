@@ -118,7 +118,7 @@ DATASETS = {
         "external_sensors": [OPENMETEO_HISTORICAL_ID],
         "room_loggers": None,
         "sidebar_order": [OPENMETEO_HISTORICAL_ID, "tinytag", "govee"],
-        # Per-logger date filters — historical Open-Meteo scoped to monitoring period
+        # Per-logger date filters - historical Open-Meteo scoped to monitoring period
         "logger_date_filters": {
             "tinytag": {"from": "2024-06-02"},  # arrived from House 5 on 2 Jun; drop Jun 1 entirely
             OPENMETEO_HISTORICAL_ID: {"from": "2024-06-02", "before": "2026-06-16"},
@@ -461,7 +461,7 @@ def load_copernicus_climate_data():
         "timestamps": [f"{y}-01-01" for y in years],
         "values": temps,
     })
-    print(f"  ERA5 Historic: {len(years)} years ({years[0]}–{era5_end_year})")
+    print(f"  ERA5 Historic: {len(years)} years ({years[0]}-{era5_end_year})")
 
     # Load SSP projection files - truncated to start after ERA5 ends
     ssp_files = sorted(hist_folder.glob("t-CMIP6_timeseries_SSP*.csv"))
@@ -485,7 +485,7 @@ def load_copernicus_climate_data():
             "timestamps": [f"{y}-01-01" for y in years],
             "values": ensemble_mean,
         })
-        print(f"  {ssp_name}: {len(years)} years ({years[0]}–{years[-1]}), {n_models} models")
+        print(f"  {ssp_name}: {len(years)} years ({years[0]}-{years[-1]}), {n_models} models")
 
     return result
 
@@ -1057,7 +1057,7 @@ def build_dataset_json(key, df, logger_overrides=None):
     available_days   = sorted(df.index.normalize().unique())
     # Tanzanian seasons: 0=Kiangazi(Jan-Feb), 1=Masika(Mar-May), 2=Kiangazi(Jun-Oct), 3=Vuli(Nov-Dec)
     _tz_season_idx = [0,0,1,1,1,2,2,2,2,2,3,3]
-    _tz_season_names = ['Kiangazi (Jan\u2013Feb)','Masika (Mar\u2013May)','Kiangazi (Jun\u2013Oct)','Vuli (Nov\u2013Dec)']
+    _tz_season_names = ['Kiangazi (Jan-Feb)','Masika (Mar-May)','Kiangazi (Jun-Oct)','Vuli (Nov-Dec)']
     available_seasons = sorted({(int(y), _tz_season_idx[int(m)-1]) for y, m in zip(df.index.year, df.index.month)})
 
     series = {}
@@ -1162,7 +1162,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script>
-// On page load, snap viewport back to scale 1 — handles arriving from a zoomed/rotated page
+// On page load, snap viewport back to scale 1 - handles arriving from a zoomed/rotated page
 // (e.g. after a password screen or landscape rotation on iOS).
 // Briefly sets maximum-scale=1 to force the browser to scale 1.0, then removes it so
 // the user can still pinch-zoom the Plotly chart afterwards.
@@ -1457,7 +1457,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       <hr class="divider">
       <div class="section" id="line-options-section">
         <div class="section-title" data-i18n="options">Options</div>
-        <label class="cb-label"><input type="checkbox" id="cb-threshold" checked> 32–35°C Threshold</label>
+        <label class="cb-label"><input type="checkbox" id="cb-threshold" checked> 32-35°C Threshold</label>
         <label class="cb-label"><input type="checkbox" id="cb-seasons" checked> Season Lines</label>
       </div>
       <hr class="divider" id="line-options-divider">
@@ -1715,7 +1715,7 @@ const I18N = {
     to: 'To ',
     temperature: 'Temperature',
     humidity: 'Humidity',
-    threshold: '32\u201335\u00b0C Threshold',
+    threshold: '32-35\u00b0C Threshold',
     seasonLines: 'Season Lines',
     longTermMode: 'Long-Term Mode',
     densityHeatmap: 'Density Heatmap',
@@ -1754,7 +1754,7 @@ const I18N = {
     betaLag: 'Thermal Lag',
     betaQuality: 'Data Quality',
 
-    betaDiffTitle: 'Indoor\u2013Outdoor Temperature Differential',
+    betaDiffTitle: 'Indoor-Outdoor Temperature Differential',
     betaDecrementTitle: 'Decrement Factor by Room',
     betaLagTitle: 'Diurnal Thermal Lag by Room',
     betaQualityTitle: 'Data Quality & Anomaly Detection',
@@ -1842,7 +1842,7 @@ const I18N = {
     wetBulbAdv:    'Wet Bulb (Tw)',
     wetBulbSuffix: '(Wet bulb)',
     wetBulbHover:  'Wet bulb (Tw)',
-    infoWetBulb:   'Wet bulb temperature (Tw) is the lowest temperature achievable by evaporative cooling, a key heat stress indicator. When Tw exceeds 32°C, cooling by sweating becomes difficult; above 35°C it is dangerous for prolonged exposure. Calculated using the Stull (2011) approximation, accurate to ±0.3°C in tropical conditions. Valid range: –20 to 50°C and 5–99% RH. Readings below 5% RH are shown as gaps; readings above 99% RH (sensor saturation) are clamped to 99% before calculating. Shown as a dashed line in the same colour as the parent sensor.',
+    infoWetBulb:   'Wet bulb temperature (Tw) is the lowest temperature achievable by evaporative cooling, a key heat stress indicator. When Tw exceeds 32°C, cooling by sweating becomes difficult; above 35°C it is dangerous for prolonged exposure. Calculated using the Stull (2011) approximation, accurate to ±0.3°C in tropical conditions. Valid range: -20 to 50°C and 5-99% RH. Readings below 5% RH are shown as gaps; readings above 99% RH (sensor saturation) are clamped to 99% before calculating. Shown as a dashed line in the same colour as the parent sensor.',
     // Weather station section
     wsWindGroup:     'Wind',
     wsSolarGroup:    'Solar',
@@ -1867,7 +1867,7 @@ const I18N = {
     longTermDataNote: 'Long-term historic and projected future data generated from',
     extDataWarningPre: 'Open-Meteo external temperature data only covers to ',
     extDataWarningPost: '. Update <code>open-meteo</code> CSV to see adaptive comfort for recent dates.',
-    historicTitle: 'Dar es Salaam – Historic and Projected Temperatures',
+    historicTitle: 'Dar es Salaam - Historic and Projected Temperatures',
   },
   sw: {
     title: "ARC Tanzania - Aladdin's Cave",
@@ -1890,7 +1890,7 @@ const I18N = {
     to: 'Hadi ',
     temperature: 'Joto',
     humidity: 'Unyevunyevu',
-    threshold: 'Kiwango cha 32\u201335\u00b0C',
+    threshold: 'Kiwango cha 32-35\u00b0C',
     seasonLines: 'Mistari ya Msimu',
     longTermMode: 'Hali ya Muda Mrefu',
     densityHeatmap: 'Density Heatmap',
@@ -1928,7 +1928,7 @@ const I18N = {
     betaDecrement: 'Kipengele cha Kupunguza',
     betaLag: 'Ucheleweshaji wa Joto',
     betaQuality: 'Ubora wa Data',
-    betaDiffTitle: 'Tofauti ya Joto Ndani\u2013Nje',
+    betaDiffTitle: 'Tofauti ya Joto Ndani-Nje',
     betaDecrementTitle: 'Kipengele cha Kupunguza kwa Chumba',
     betaLagTitle: 'Ucheleweshaji wa Joto kwa Chumba',
     betaQualityTitle: 'Ubora wa Data na Ugunduzi wa Kasoro',
@@ -2007,7 +2007,7 @@ const I18N = {
     wetBulbAdv:    'Joto la Mvua (Tw)',
     wetBulbSuffix: '(Joto la mvua)',
     wetBulbHover:  'Joto la mvua (Tw)',
-    infoWetBulb:   'Joto la mvua (Tw) ni joto la chini kabisa linaloweza kufikiwa kwa kupoa kwa uvukizi, kiashiria muhimu cha msongo wa joto. Imehesabiwa kwa kutumia mkaribisho wa Stull (2011). Masafa halali: –20 hadi 50°C na 5–99% RH. Maadili chini ya 5% RH yanaonyeshwa kama mapengo; maadili zaidi ya 99% RH (kipimo kikifikia kikomo chake) yanafupishwa hadi 99% kabla ya kuhesabu. Inaonyeshwa kama mstari wa nukta katika rangi ile ile ya sensor.',
+    infoWetBulb:   'Joto la mvua (Tw) ni joto la chini kabisa linaloweza kufikiwa kwa kupoa kwa uvukizi, kiashiria muhimu cha msongo wa joto. Imehesabiwa kwa kutumia mkaribisho wa Stull (2011). Masafa halali: -20 hadi 50°C na 5-99% RH. Maadili chini ya 5% RH yanaonyeshwa kama mapengo; maadili zaidi ya 99% RH (kipimo kikifikia kikomo chake) yanafupishwa hadi 99% kabla ya kuhesabu. Inaonyeshwa kama mstari wa nukta katika rangi ile ile ya sensor.',
     // Weather station section
     wsWindGroup:     'Upepo',
     wsSolarGroup:    'Mwanga wa Jua',
@@ -2032,7 +2032,7 @@ const I18N = {
     longTermDataNote: 'Data ya kihistoria ya muda mrefu na utabiri wa siku zijazo imeundwa kutoka',
     extDataWarningPre: 'Data ya joto la nje ya Open-Meteo inafika hadi tu ',
     extDataWarningPost: '. Sasisha CSV ya <code>open-meteo</code> ili kuona starehe ya kubadilika kwa tarehe za karibuni.',
-    historicTitle: 'Dar es Salaam – Joto la Kihistoria na Utabiri wa Siku Zijazo',
+    historicTitle: 'Dar es Salaam - Joto la Kihistoria na Utabiri wa Siku Zijazo',
   }
 };
 function t(key) { return (I18N[currentLang] || I18N.en)[key] || I18N.en[key] || key; }
@@ -2397,7 +2397,7 @@ function substratBuildOptions(cycle, gran) {
     }
     defaultVal = 0; lastVal = 23;
   } else if (cycle === 'day' && gran === 'synoptic') {
-    const synLabels = ['Late Night (00\u201306)', 'Morning (06\u201312)', 'Afternoon (12\u201318)', 'Evening (18\u201300)'];
+    const synLabels = ['Late Night (00-06)', 'Morning (06-12)', 'Afternoon (12-18)', 'Evening (18-00)'];
     for (let s = 0; s < 4; s++) html += '<option value="' + s + '">' + synLabels[s] + '</option>';
     defaultVal = 0; lastVal = 3;
   } else if (cycle === 'year' && gran === 'month') {
@@ -2411,7 +2411,7 @@ function substratBuildOptions(cycle, gran) {
     for (let d = 1; d <= 31; d++) html += '<option value="' + d + '">' + d + '</option>';
     defaultVal = 1; lastVal = 31;
   } else if (cycle === 'year' && gran === 'season') {
-    const sLabels = ['Kiangazi (Jan\u2013Feb)', 'Masika (Mar\u2013May)', 'Kiangazi (Jun\u2013Oct)', 'Vuli (Nov\u2013Dec)'];
+    const sLabels = ['Kiangazi (Jan-Feb)', 'Masika (Mar-May)', 'Kiangazi (Jun-Oct)', 'Vuli (Nov-Dec)'];
     for (let s = 0; s < 4; s++) html += '<option value="' + s + '">' + sLabels[s] + '</option>';
     defaultVal = 0; lastVal = 3;
   }
@@ -2469,7 +2469,7 @@ function substratRangeChanged(id) {
   f.from = parseInt(block.querySelector('.substrat-from').value);
   f.to = parseInt(block.querySelector('.substrat-to').value);
 
-  // Validate: Day of Month and Week are NOT cyclic — invalid if from > to
+  // Validate: Day of Month and Week are NOT cyclic - invalid if from > to
   const nonCyclic = (f.cycle === 'year' && (f.groupBy === 'day' || f.groupBy === 'week'));
   if (nonCyclic && f.from > f.to) {
     block.classList.add('invalid');
@@ -2562,7 +2562,7 @@ function passesAllSubstratFilters(ms) {
   }
 }
 
-// Apply substratification to a filtered series — returns new filtered object with non-matching points nulled
+// Apply substratification to a filtered series - returns new filtered object with non-matching points nulled
 function applySubstratFilter(filtered) {
   const active = getActiveSubstratFilters();
   if (active.length === 0) return filtered;
@@ -3050,26 +3050,26 @@ function describeCompareDiffs() {
 
 function describeFilters(filters) {
   if (!filters || filters.length === 0) return '';
-  const synLabels = ['Late Night (00\u201306)', 'Morning (06\u201312)', 'Afternoon (12\u201318)', 'Evening (18\u201300)'];
+  const synLabels = ['Late Night (00-06)', 'Morning (06-12)', 'Afternoon (12-18)', 'Evening (18-00)'];
   const monthLabels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const seasonLabels = ['Kiangazi (Jan\u2013Feb)', 'Masika (Mar\u2013May)', 'Kiangazi (Jun\u2013Oct)', 'Vuli (Nov\u2013Dec)'];
+  const seasonLabels = ['Kiangazi (Jan-Feb)', 'Masika (Mar-May)', 'Kiangazi (Jun-Oct)', 'Vuli (Nov-Dec)'];
   const parts = [];
   for (const f of filters) {
     if (f.cycle === 'none') continue;
     if (f.cycle === 'day' && f.groupBy === 'hour') {
       const from = String(f.from).padStart(2, '0') + ':00';
       const to = String(f.to).padStart(2, '0') + ':00';
-      parts.push(f.from === f.to ? from : from + '\u2013' + to);
+      parts.push(f.from === f.to ? from : from + '-' + to);
     } else if (f.cycle === 'day' && f.groupBy === 'synoptic') {
-      parts.push(f.from === f.to ? synLabels[f.from] : synLabels[f.from] + '\u2013' + synLabels[f.to]);
+      parts.push(f.from === f.to ? synLabels[f.from] : synLabels[f.from] + '-' + synLabels[f.to]);
     } else if (f.cycle === 'year' && f.groupBy === 'month') {
-      parts.push(f.from === f.to ? monthLabels[f.from] : monthLabels[f.from] + '\u2013' + monthLabels[f.to]);
+      parts.push(f.from === f.to ? monthLabels[f.from] : monthLabels[f.from] + '-' + monthLabels[f.to]);
     } else if (f.cycle === 'year' && f.groupBy === 'season') {
       parts.push(f.from === f.to ? seasonLabels[f.from] : seasonLabels[f.from] + ' to ' + seasonLabels[f.to]);
     } else if (f.cycle === 'year' && f.groupBy === 'week') {
-      parts.push(f.from === f.to ? 'W' + f.from : 'W' + f.from + '\u2013W' + f.to);
+      parts.push(f.from === f.to ? 'W' + f.from : 'W' + f.from + '-W' + f.to);
     } else if (f.cycle === 'year' && f.groupBy === 'day') {
-      parts.push(f.from === f.to ? 'Day ' + f.from : 'Day ' + f.from + '\u2013' + f.to);
+      parts.push(f.from === f.to ? 'Day ' + f.from : 'Day ' + f.from + '-' + f.to);
     } else if (f.cycle === 'mjo') {
       const phases = [...(f.phases || [])].sort();
       parts.push('MJO ' + (phases.length > 0 ? phases.map(p => MJO_LABELS[p] || ('Ph' + p)).join(', ') : 'none'));
@@ -3125,11 +3125,11 @@ function getCompareIterations() {
 function isOpenMeteo(id) { return id && id.indexOf('(Open-Meteo)') !== -1; }
 function isForecast(id) { return id && id.indexOf('Forecast') !== -1 && isOpenMeteo(id); }
 
-// Stull (2011) wet-bulb approximation — accurate to ±0.3°C for tropical conditions
+// Stull (2011) wet-bulb approximation - accurate to ±0.3°C for tropical conditions
 // Valid range: T -20 to 50°C, RH 5 to 99%
 function stullWetBulb(T, RH) {
   if (T < -20 || T > 50 || RH < 5) return null;
-  if (RH > 99) RH = 99; // sensor saturation artefact — clamp to valid ceiling
+  if (RH > 99) RH = 99; // sensor saturation artefact - clamp to valid ceiling
   return T * Math.atan(0.151977 * Math.pow(RH + 8.313659, 0.5))
     + Math.atan(T + RH)
     - Math.atan(RH - 1.676331)
@@ -3210,7 +3210,7 @@ async function init() {
       const expectedMs = fetchMs - toleranceDays * DAY_MS;
       if (lastMs < expectedMs) {
         const lastDate = toEATString(lastMs).split(',')[0].trim();
-        return `Data only extends to ${lastDate} — expected up to day before last update`;
+        return `Data only extends to ${lastDate} - expected up to day before last update`;
       }
       return null;
     }
@@ -3251,7 +3251,7 @@ async function init() {
       const ageDays = (Date.now() - fetchMs) / DAY_MS;
       if (ageDays <= 2) return null;
       const d = Math.floor(ageDays);
-      return `Fetched ${d} day${d !== 1 ? 's' : ''} ago — data may be out of date`;
+      return `Fetched ${d} day${d !== 1 ? 's' : ''} ago - data may be out of date`;
     }
     const lines = [];
     if (FETCH_TIMES.openmeteo) {
@@ -4394,14 +4394,14 @@ function setupStaticListeners() {
   const groupByOptions = {
     day:  [{value:'hour', label:'Hour'}, {value:'synoptic', label:'Synoptic Hours'}],
     year: [{value:'day', label:'Day'}, {value:'week', label:'Week'}, {value:'month', label:'Month'}, {value:'season', label:'Season'}],
-    mjo:  [{value:'phase', label:'Phase (1–8)'}],
+    mjo:  [{value:'phase', label:'Phase (1-8)'}],
     iod:  [{value:'phase', label:'Phase (+/−/Neutral)'}],
     enso: [{value:'phase', label:'Phase (Niño/Niña/Neutral)'}],
   };
   const oscInfoTexts = {
-    mjo: 'Madden\u2013Julian Oscillation: a tropical weather pattern that circles the globe every 30\u201360 days, modulating rainfall and temperature. 8 phases track its position \u2014 Phases 2\u20133 (Indian Ocean) and 4\u20135 (Maritime Continent) are most relevant to East Africa. Weekly RMM phase data; weeks with amplitude < 1.0 are excluded.',
+    mjo: 'Madden-Julian Oscillation: a tropical weather pattern that circles the globe every 30-60 days, modulating rainfall and temperature. 8 phases track its position - Phases 2-3 (Indian Ocean) and 4-5 (Maritime Continent) are most relevant to East Africa. Weekly RMM phase data; weeks with amplitude < 1.0 are excluded.',
     iod: 'Indian Ocean Dipole: a sea-surface temperature gradient between the western and eastern Indian Ocean. Positive IOD brings wetter conditions to East Africa; Negative IOD brings drier conditions. Monthly DMI-based phases: Positive, Negative, or Neutral.',
-    enso: 'El Ni\u00f1o\u2013Southern Oscillation: Pacific Ocean temperature cycles affecting global weather. El Ni\u00f1o tends to bring wetter short rains (Vuli) to East Africa; La Ni\u00f1a tends to bring drier conditions. Monthly ONI-based phases: El Ni\u00f1o, La Ni\u00f1a, or Neutral.',
+    enso: 'El Ni\u00f1o-Southern Oscillation: Pacific Ocean temperature cycles affecting global weather. El Ni\u00f1o tends to bring wetter short rains (Vuli) to East Africa; La Ni\u00f1a tends to bring drier conditions. Monthly ONI-based phases: El Ni\u00f1o, La Ni\u00f1a, or Neutral.',
   };
   function updatePeriodCycleInfo() {
     const infoIcon = document.getElementById('natural-cycles-info');
@@ -4630,7 +4630,7 @@ function downloadChartPng() {
       metricStr = '_' + metrics.join('+');
     }
     const slug = s => s.replace(/[^a-zA-Z0-9]+/g, '_').replace(/_+$/,'');
-    // Sensor selection: name 1–2 selected sensors, count if a partial subset, omit if all selected
+    // Sensor selection: name 1-2 selected sensors, count if a partial subset, omit if all selected
     let sensorStr = '';
     if (state.chartType === 'line' || state.chartType === 'histogram' || state.chartType === 'periodic') {
       const selIds = [...state.selectedLoggers];
@@ -5125,7 +5125,7 @@ function renderLineGraph() {
         }
       }
 
-      // Wet bulb trace (dashed, same colour) — renders even if main logger is deselected
+      // Wet bulb trace (dashed, same colour) - renders even if main logger is deselected
       if (_wbWanted) {
         const wbY = filtered.timestamps.map((_, i) => {
           const T = filtered.temperature[i], RH = filtered.humidity[i];
@@ -5178,7 +5178,7 @@ function renderLineGraph() {
           // In compare mode, use set colour; otherwise use logger's own colour
           const color = iter.baseColor || origColor;
           const dispName = lnFrom(otherM, lid);
-          const crossPrefix = namePrefix + otherName + ' \u2013 ';
+          const crossPrefix = namePrefix + otherName + ' - ';
           const source = otherM.loggerSources[lid] || '';
           const lgGroup = iter.setLabel ? 'compare_s' + iter.setIndex : 'cross_' + otherKey + '_' + lid;
           for (const metric of ['temperature','humidity']) {
@@ -5234,7 +5234,7 @@ function renderLineGraph() {
   const _lineHasData = dataMinMs !== Infinity;
   if (dataMinMs === Infinity) { dataMinMs = start; dataMaxMs = end; }
 
-  // Compute primary y-axis range early — needed for the threshold paper-coordinate shape
+  // Compute primary y-axis range early - needed for the threshold paper-coordinate shape
   // so the threshold rect never touches the primary y-axis range and cannot disrupt overlaying axes.
   const yPad = 1.5;
   const yLo = yMin !== Infinity ? Math.floor((yMin - yPad) / yPad) * yPad : undefined;
@@ -5273,7 +5273,7 @@ function renderLineGraph() {
       y0:32, y1:35,
       fillcolor:'rgba(231,76,60,0.12)', line:{width:0}, layer:'below'});
     traces.push({x:[null], y:[null], type:'scatter', mode:'lines',
-      name:'32\u201335\u00b0C Threshold', line:{color:'rgba(231,76,60,0.35)', width:8},
+      name:'32-35\u00b0C Threshold', line:{color:'rgba(231,76,60,0.35)', width:8},
       hoverinfo:'skip', showlegend:true});
   }
 
@@ -5321,7 +5321,7 @@ function renderLineGraph() {
     });
   }
 
-  // Weather station traces — one right-side y-axis per unit family (kph / ° / W/m² / mm / ppm)
+  // Weather station traces - one right-side y-axis per unit family (kph / ° / W/m² / mm / ppm)
   const WEATHER_DEFS = {
     avg_wind_kph:   {color: '#1f77b4', label: t('wsAvgWindShort'),   unit: 'kph',       axis: 'y2'},
     peak_wind_kph:  {color: '#4a9fd4', label: t('wsPeakWindShort'),  unit: 'kph',       axis: 'y2'},
@@ -5670,7 +5670,7 @@ function renderHistogram() {
     }
   }
 
-  // 32–35°C threshold range
+  // 32-35°C threshold range
   const shapes = [];
   if (state.showThreshold && hasTemp) {
     shapes.push({type:'rect', xref:'x', yref:'paper', x0:32, x1:35, y0:0, y1:1,
@@ -5694,7 +5694,7 @@ function renderHistogram() {
     plot_bgcolor:'white', paper_bgcolor:'white',
     hovermode:'closest',
     hoverlabel:{font:{family:'Ubuntu, sans-serif'}},
-  }, title: (`${dsl} \u2013 ${chartTitle}`).replace(/&amp;/g, '&'), _noData: !isFinite(globalMin)};
+  }, title: (`${dsl} - ${chartTitle}`).replace(/&amp;/g, '&'), _noData: !isFinite(globalMin)};
 }
 
 // ── Shared stats helpers (used by both histogram and comfort stats) ───────────
@@ -5730,7 +5730,7 @@ function buildGapDropdown(ddId, wrapId, seriesInfo, allAvailableInfo, start, end
     if (sg.secondary.length > 0) {
       const g = document.createElement('optgroup');
       const gl = {year:'years',season:'seasons',month:'months',week:'weeks'}[state.timeMode] || 'periods';
-      g.label = `Other ${gl} \u2013 ${sg.source} only`;
+      g.label = `Other ${gl} - ${sg.source} only`;
       sg.secondary.forEach(p => { const o = document.createElement('option'); o.value = JSON.stringify(Object.assign({}, p, {sourceType: sg.source})); o.textContent = p.label; g.appendChild(o); });
       dd.appendChild(g);
     }
@@ -5804,7 +5804,7 @@ function updateHistogramStats(start, end) {
     const gaps = detectSeriesGaps(series.timestamps, start, end);
     gapInfoMap[loggerId] = gaps;
     let filtered = filterSeries(series, start, end);
-    if (!filtered) continue; // no data in range — skip
+    if (!filtered) continue; // no data in range - skip
     filtered = applyAnomalousFilter(filtered, loggerId);
     if (!filtered) continue;
     filtered = applySubstratFilter(filtered);
@@ -5942,7 +5942,7 @@ function renderAdaptiveComfort() {
       const cName = namePrefix + ln(loggerId) + meteoSuffix(loggerId) + omniSuffix(cSource);
 
       if (isCompare) {
-        // Merge into per-set arrays — skip expensive per-point customdata
+        // Merge into per-set arrays - skip expensive per-point customdata
         for (let i = 0; i < filtered.extTemp.length; i++) {
           cmpX.push(filtered.extTemp[i]);
           cmpY.push(filtered.temperature[i]);
@@ -5963,7 +5963,7 @@ function renderAdaptiveComfort() {
     }
 
     if (isCompare && cmpX.length > 0) {
-      // Single merged trace per compare set — much faster than one per logger
+      // Single merged trace per compare set - much faster than one per logger
       const lgGroup = 'compare_s' + iter.setIndex;
       traces.push({x:cmpX, y:cmpY, type:'scatter', mode:'markers',
         name: iter.legendName, marker:{color: cmpColors, size:4, opacity:0.2},
@@ -6050,7 +6050,7 @@ function renderAdaptiveComfort() {
     legend:{orientation:'h', x:0.5, y:-0.22, xanchor:'center', font:{size:11}, itemclick:false, itemdoubleclick:false},
     annotations: isFinite(actualStartMs) ? [dateRangeAnnotation(actualStartMs, actualEndMs, false, comfortSourceLabel(extSrcText))] : [],
     plot_bgcolor:'white', paper_bgcolor:'white', hovermode:'closest', hoverlabel:{font:{family:'Ubuntu, sans-serif'}},
-  }, title: `${dsl} \u2013 ${t('adaptiveComfortTitle')}`, _noData: allExtTemps.length === 0};
+  }, title: `${dsl} - ${t('adaptiveComfortTitle')}`, _noData: allExtTemps.length === 0};
 }
 
 // ── Data completeness detection ───────────────────────────────────────────────
@@ -6093,10 +6093,10 @@ function formatGapRange(startMs, endMs) {
   if (e.getUTCHours() < 1)   e = new Date(e.getTime() - 24*3600000);
   const mn = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   if (s.getUTCFullYear() === e.getUTCFullYear() && s.getUTCMonth() === e.getUTCMonth())
-    return `${mn[s.getUTCMonth()]} ${s.getUTCDate()}\u2013${e.getUTCDate()}, ${s.getUTCFullYear()}`;
+    return `${mn[s.getUTCMonth()]} ${s.getUTCDate()}-${e.getUTCDate()}, ${s.getUTCFullYear()}`;
   if (s.getUTCFullYear() === e.getUTCFullYear())
-    return `${mn[s.getUTCMonth()]} ${s.getUTCDate()} \u2013 ${mn[e.getUTCMonth()]} ${e.getUTCDate()}, ${s.getUTCFullYear()}`;
-  return `${mn[s.getUTCMonth()]} ${s.getUTCDate()}, ${s.getUTCFullYear()} \u2013 ${mn[e.getUTCMonth()]} ${e.getUTCDate()}, ${e.getUTCFullYear()}`;
+    return `${mn[s.getUTCMonth()]} ${s.getUTCDate()} - ${mn[e.getUTCMonth()]} ${e.getUTCDate()}, ${s.getUTCFullYear()}`;
+  return `${mn[s.getUTCMonth()]} ${s.getUTCDate()}, ${s.getUTCFullYear()} - ${mn[e.getUTCMonth()]} ${e.getUTCDate()}, ${e.getUTCFullYear()}`;
 }
 
 function gapTooltipHTML(gaps, rangeStartMs, rangeEndMs) {
@@ -6149,7 +6149,7 @@ function _searchCompletePeriods(tsArrays, rangeStart, rangeEnd) {
     if (allOK(r.s, r.e)) { results.push({label: String(y), gran: 'year', y, fi: ol/(r.e-r.s) >= 0.99}); found = true; }
   }
   if (!found) {
-    const SN = ['Kiangazi (Jan\u2013Feb)','Masika (Mar\u2013May)','Kiangazi (Jun\u2013Oct)','Vuli (Nov\u2013Dec)'];
+    const SN = ['Kiangazi (Jan-Feb)','Masika (Mar-May)','Kiangazi (Jun-Oct)','Vuli (Nov-Dec)'];
     for (const as of (m.availableSeasons || [])) {
       const r = periodRangeMs('season', {y: as.year, si: as.season});
       if (r.s > rangeEnd || r.e < rangeStart) continue;
@@ -6530,7 +6530,7 @@ function updatePeriodicCompleteness(start, end) {
     const series = dataset().series[loggerId];
     if (!series) continue;
     let filtered = filterSeries(series, start, end);
-    if (!filtered) continue; // no data in range — skip
+    if (!filtered) continue; // no data in range - skip
     filtered = applyAnomalousFilter(filtered, loggerId);
     if (!filtered) continue;
     const gaps = detectSeriesGaps(series.timestamps, start, end);
@@ -6565,7 +6565,7 @@ function emptyPeriodicResult(msg) {
       annotations: [{text: msg || t('noDataSelected'), xref: 'paper', yref: 'paper', x: 0.5, y: 0.5, showarrow: false, font: {size: 16, color: '#999'}}],
       plot_bgcolor: 'white', paper_bgcolor: 'white',
     },
-    title: dsLabel() + ' \u2013 ' + t('avgProfiles'),
+    title: dsLabel() + ' - ' + t('avgProfiles'),
     _noData: true,
   };
 }
@@ -6655,7 +6655,7 @@ function renderBetaDifferential() {
 
   const sm = window.innerWidth < 680;
   const dsl = dsLabel();
-  const title = `${dsl} \u2013 ${t('betaDiffTitle')}`;
+  const title = `${dsl} - ${t('betaDiffTitle')}`;
   return {
     traces, title,
     layout: {
@@ -6747,7 +6747,7 @@ function renderBetaDecrement() {
   // Reference line at 1.0
   const sm = window.innerWidth < 680;
   const dsl = dsLabel();
-  const title = `${dsl} \u2013 ${t('betaDecrementTitle')}`;
+  const title = `${dsl} - ${t('betaDecrementTitle')}`;
   return {
     traces, title,
     layout: {
@@ -6850,7 +6850,7 @@ function renderBetaLag() {
 
   const sm = window.innerWidth < 680;
   const dsl = dsLabel();
-  const title = `${dsl} \u2013 ${t('betaLagTitle')}`;
+  const title = `${dsl} - ${t('betaLagTitle')}`;
   const maxLag = loggerLag.length > 0 ? Math.max(...loggerLag) : 1;
   const yTop = Math.ceil((maxLag * 1.15 + 0.2) * 2) / 2; // round up to nearest 0.5, with padding for text labels
   return {
@@ -6984,7 +6984,7 @@ function renderBetaQuality() {
 
   const sm = window.innerWidth < 680;
   const dsl = dsLabel();
-  const title = `${dsl} \u2013 ${t('betaQualityTitle')}`;
+  const title = `${dsl} - ${t('betaQualityTitle')}`;
   return {
     traces, title,
     layout: {
@@ -7011,7 +7011,7 @@ function renderPeriodicAverages() {
   // Tanzanian seasons: month → season index
   // 0=Kiangazi (Jan-Feb), 1=Masika (Mar-May), 2=Kiangazi (Jun-Oct), 3=Vuli (Nov-Dec)
   const TZ_SEASON_IDX  = [0,0,1,1,1,2,2,2,2,2,3,3]; // indexed by month 0-11
-  const TZ_SEASON_LABELS = ['Kiangazi (Jan\u2013Feb)','Masika (Mar\u2013May)','Kiangazi (Jun\u2013Oct)','Vuli (Nov\u2013Dec)'];
+  const TZ_SEASON_LABELS = ['Kiangazi (Jan-Feb)','Masika (Mar-May)','Kiangazi (Jun-Oct)','Vuli (Nov-Dec)'];
 
   let nCats, categoryLabels, getCategoryIdx;
   // xPositions: numeric positions for each category on x-axis (null = use categoryLabels as-is on category axis)
@@ -7025,7 +7025,7 @@ function renderPeriodicAverages() {
     getCategoryIdx = ms => eatDate(ms).getUTCHours();
   } else if (pr === 'day' && pg === 'synoptic') {
     nCats = 4;
-    categoryLabels = ['Late Night (00\u201306)','Morning (06\u201312)','Afternoon (12\u201318)','Evening (18\u201300)'];
+    categoryLabels = ['Late Night (00-06)','Morning (06-12)','Afternoon (12-18)','Evening (18-00)'];
     getCategoryIdx = ms => {
       const h = eatDate(ms).getUTCHours();
       if (h < 6) return 0; if (h < 12) return 1; if (h < 18) return 2; return 3;
@@ -7279,7 +7279,7 @@ function renderPeriodicAverages() {
     state.substratCombine = savedCombine;
   }
 
-  // Section average lines (External, Room, Structural) — hidden in compare mode
+  // Section average lines (External, Room, Structural) - hidden in compare mode
   if (!state.compareEnabled) {
   const sectionDefs = [
     {key: 'external', name: t('externalAvg'), color: '#1a1a1a'},
@@ -7343,7 +7343,7 @@ function renderPeriodicAverages() {
     });
   }
 
-  // 32–35°C threshold range for periodic averages
+  // 32-35°C threshold range for periodic averages
   // Only show threshold band when data approaches it, to avoid inflating y-axis
   const showThresholdBand = state.showThreshold && state.selectedMetrics.has('temperature');
   if (showThresholdBand) {
@@ -7362,7 +7362,7 @@ function renderPeriodicAverages() {
   const chartTitle = hasTemp && hasHum ? t('tempAndHumid') : hasTemp ? t('tempOnly') : t('humidOnly');
 
   const cycleLabels = {day:t('day'), year:t('year'), mjo:'MJO', iod:'IOD', enso:'ENSO'};
-  const rangeFullLabels = {day:t('day'), year:t('year'), mjo:'Madden\u2013Julian Oscillation (MJO)', iod:'Indian Ocean Dipole (IOD)', enso:'El Ni\u00f1o\u2013Southern Oscillation (ENSO)'};
+  const rangeFullLabels = {day:t('day'), year:t('year'), mjo:'Madden-Julian Oscillation (MJO)', iod:'Indian Ocean Dipole (IOD)', enso:'El Ni\u00f1o-Southern Oscillation (ENSO)'};
   const groupByLabels = {hour:t('hour'), synoptic:'Synoptic', month:t('month'), week:t('week'), day:t('day'), season:t('season'), phase:t('phase')};
   const isOsc = pr === 'mjo' || pr === 'iod' || pr === 'enso';
   const periodLabel = isOsc ? (cycleLabels[pr] || pr) + ' ' + t('phase') : (cycleLabels[pr] || pr) + ' / ' + (groupByLabels[pg] || pg);
@@ -7376,9 +7376,9 @@ function renderPeriodicAverages() {
   else if (pr === 'year' && pg === 'week') xTitle = t('weekOfYear');
   else if (pr === 'year' && pg === 'day') xTitle = t('dayOfYear');
   else if (pr === 'year' && pg === 'season') xTitle = t('tanzanianSeason');
-  else if (pr === 'mjo') xTitle = 'Madden\u2013Julian Oscillation (MJO) Phase';
+  else if (pr === 'mjo') xTitle = 'Madden-Julian Oscillation (MJO) Phase';
   else if (pr === 'iod') xTitle = 'Indian Ocean Dipole (IOD) Phase';
-  else if (pr === 'enso') xTitle = 'El Ni\u00f1o\u2013Southern Oscillation (ENSO) Phase';
+  else if (pr === 'enso') xTitle = 'El Ni\u00f1o-Southern Oscillation (ENSO) Phase';
   else xTitle = periodLabel;
 
   // Build x-axis config
@@ -7409,7 +7409,7 @@ function renderPeriodicAverages() {
           let dMin = Infinity;
           traces.forEach(tr => { if (tr.y) tr.y.forEach(v => { if (v != null && isFinite(v)) { if (v > dMax) dMax = v; if (v < dMin) dMin = v; }});});
           if (isFinite(dMax) && dMax < 30) {
-            // Data well below threshold — set range from data only with 5% padding
+            // Data well below threshold - set range from data only with 5% padding
             const pad = (dMax - dMin) * 0.05 || 1;
             cfg.range = [dMin - pad, dMax + pad];
           }
@@ -7421,7 +7421,7 @@ function renderPeriodicAverages() {
       hovermode: 'closest', hoverlabel: {font: {family: 'Ubuntu, sans-serif'}},
       shapes, annotations: [...annotations, ...(isFinite(actualStartMs) ? [dateRangeAnnotation(actualStartMs, actualEndMs, true)] : [])],
     },
-    title: (dsl + ' \u2013 ' + chartTitle + ': ' + periodFullLabel + ' Averages').replace(/&amp;/g, '&'),
+    title: (dsl + ' - ' + chartTitle + ': ' + periodFullLabel + ' Averages').replace(/&amp;/g, '&'),
   };
 }
 
@@ -7631,7 +7631,7 @@ requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart',
   icon.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
 })();
 
-// Sidebar info tooltips — Compare Mode, Long-Term Mode, Wet Bulb, comfort band, running mean
+// Sidebar info tooltips - Compare Mode, Long-Term Mode, Wet Bulb, comfort band, running mean
 (function() {
   const items = [
     { iconId: 'compare-info-icon', tipId: 'compare-info-tip', key: 'infoCompare' },
