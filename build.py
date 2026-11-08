@@ -45,6 +45,30 @@ OMNISENSE_T_H_SENSORS = {
     "32760048",
 }
 
+# Omnisense sensors with a surface probe. Each reports two temperatures:
+#   surface_temp - the magnetic probe on the surface it is fixed to (for
+#                  32760048, the underside of the metal roof sheet)
+#   temperature  - the sensor body hanging just below it, i.e. the air
+#                  adjacent to that surface (this is where humidity is read)
+# Omnisense's own derived columns confirm the split: t_delta = surface_temp -
+# temperature and t_diff = surface_temp - dew_point. RULE: roof/surface
+# analysis must use surface_temp; the body reading runs up to ~9 °C below the
+# metal by day. The probe is emitted as its own temperature-only series,
+# "<sensorId>_surface", with humidity left empty (null).
+# Mirrors arc_temp_humid/build.py.
+OMNISENSE_SURFACE_SENSORS = {
+    "32760048": "32760048_surface",
+}
+SURFACE_SERIES_IDS = set(OMNISENSE_SURFACE_SENSORS.values())
+SURFACE_SERIES_COLOR = "#8b0000"   # fixed, so adding the series shifts no other logger's colour
+OMNISENSE_SERIES_IDS = OMNISENSE_T_H_SENSORS | SURFACE_SERIES_IDS
+
+
+def json_values(series):
+    """Round to 2 dp and emit NaN as None, so it serialises as JSON null
+    (json.dumps would otherwise write a bare NaN)."""
+    return [None if pd.isna(v) else v for v in series.round(2).tolist()]
+
 
 OPENMETEO_HISTORICAL_ID = "External Historical (Open-Meteo)"
 OPENMETEO_FORECAST_ID = "External Forecast (Open-Meteo)"
@@ -63,7 +87,7 @@ DATASETS = {
                          "759492",
                          "327601CD","3276003D","3276028A","32760205",
                          "32760208","327601CB","32760371","3276012B"],
-        "structural_loggers": ["759493","861004","861034","759489","32760164","32760048"],
+        "structural_loggers": ["759493","861004","861034","759489","32760164","32760048_surface","32760048"],
         # Per-logger date filters: only keep data within [from, before) for that logger
         "logger_date_filters": {
             "759498": {"before": "2024-06-01"},  # moved to Schoolteacher's on 1 Jun; drop Jun 1 entirely
@@ -104,7 +128,8 @@ DATASETS = {
             "759519",                                             # Bedroom 4 below metal (TinyTag)
             "3276012B",                                           # Bedroom 4 (Omnisense)
             "32760164",                                           # Bedroom 4 above ceiling (Omnisense)
-            "32760048",                                           # Bedroom 4 below metal (Omnisense)
+            "32760048_surface",                                   # Bedroom 4 metal roof surface probe (Omnisense surface_temp)
+            "32760048",                                           # Bedroom 4 air adjacent to metal roof (Omnisense sensor body)
             # Washrooms
             "32760208",                                           # Washrooms area (Omnisense)
         ],
@@ -153,7 +178,8 @@ LOGGER_NAMES = {
     "32760371": "Bedroom 3",
     "3276012B": "Bedroom 4",
     "32760164": "Bedroom 4 (above ceiling)",
-    "32760048": "Bedroom 4 (below metal roof)",
+    "32760048_surface": "Bedroom 4 (below metal roof) – Surface temperature",
+    "32760048": "Bedroom 4 (below metal roof) – Ambient adjacent surface",
     "3276003D": "Kitchen",
     "327601CD": "Living Room",
     "32760205": "Bedroom 1",
@@ -186,7 +212,8 @@ LOGGER_NAMES_SW = {
     "32760371": "Chumba cha kulala 3",
     "3276012B": "Chumba cha kulala 4",
     "32760164": "Chumba cha kulala 4 (juu ya dari)",
-    "32760048": "Chumba cha kulala 4 (chini ya paa la bati)",
+    "32760048_surface": "Chumba cha kulala 4 (chini ya paa la bati) – Joto la uso wa bati",
+    "32760048": "Chumba cha kulala 4 (chini ya paa la bati) – Hewa iliyo karibu na uso",
     "3276003D": "Jikoni",
     "327601CD": "Sebule",
     "32760205": "Chumba cha kulala 1",
@@ -207,7 +234,7 @@ LOGGER_SOURCES = {
     "320E02D1": "Omnisense", "327601CB": "Omnisense", "32760371": "Omnisense",
     "3276012B": "Omnisense", "32760164": "Omnisense", "3276003D": "Omnisense",
     "327601CD": "Omnisense", "32760205": "Omnisense", "3276028A": "Omnisense",
-    "32760208": "Omnisense", "32760048": "Omnisense",
+    "32760208": "Omnisense", "32760048": "Omnisense", "32760048_surface": "Omnisense",
     OPENMETEO_HISTORICAL_ID: "Open-Meteo",
     OPENMETEO_FORECAST_ID: "Open-Meteo",
     OPENMETEO_LEGACY_ID: "Open-Meteo",
@@ -568,6 +595,7 @@ def load_omnisense_csv(path, sensor_filter=None):
             sensor_id_idx = col_headers.index("sensorId") if "sensorId" in col_headers else 0
             temp_idx = col_headers.index("temperature")
             humidity_idx = col_headers.index("humidity")
+            surface_idx = col_headers.index("surface_temp") if "surface_temp" in col_headers else None
             date_col, date_idx = None, None
             for col in ["read_date", "datetime", "date", "time"]:
                 if col in col_headers:
@@ -597,6 +625,15 @@ def load_omnisense_csv(path, sensor_filter=None):
                             "humidity": row[humidity_idx],
                             "logger_id": sensor_id,
                         })
+                        # Surface-probe sensors: the probe becomes its own
+                        # temperature-only series (no humidity at a surface).
+                        if surface_idx is not None and sensor_id in OMNISENSE_SURFACE_SENSORS:
+                            data_rows.append({
+                                "datetime": row[date_idx],
+                                "temperature": row[surface_idx],
+                                "humidity": None,
+                                "logger_id": OMNISENSE_SURFACE_SENSORS[sensor_id],
+                            })
                     except (IndexError, ValueError):
                         continue
             if data_rows:
@@ -604,7 +641,10 @@ def load_omnisense_csv(path, sensor_filter=None):
                 df["datetime"] = pd.to_datetime(df["datetime"], errors="coerce")
                 df["temperature"] = pd.to_numeric(df["temperature"], errors="coerce")
                 df["humidity"] = pd.to_numeric(df["humidity"], errors="coerce")
-                df = df.dropna()
+                # Every series needs a time and a temperature; humidity is
+                # required too except on surface-probe series, which have none.
+                df = df.dropna(subset=["datetime", "temperature"])
+                df = df[df["humidity"].notna() | df["logger_id"].isin(SURFACE_SERIES_IDS)]
                 if not df.empty:
                     all_dfs.append(df)
             i = data_end
@@ -1018,7 +1058,13 @@ def build_dataset_json(key, df, logger_overrides=None):
             if entry:
                 anomalous_ranges_js[lid] = entry
 
-    color_map = {l: COLORS[i % len(COLORS)] for i, l in enumerate(unique_loggers)}
+    # Surface-probe series take a fixed colour and are left out of the index
+    # count, so adding one does not shift the colour of any existing logger.
+    _colored = [l for l in unique_loggers if l not in SURFACE_SERIES_IDS]
+    color_map = {l: COLORS[i % len(COLORS)] for i, l in enumerate(_colored)}
+    for l in unique_loggers:
+        if l in SURFACE_SERIES_IDS:
+            color_map[l] = SURFACE_SERIES_COLOR
     # Give Open-Meteo Historical the light cyan, Forecast a blue-grey
     cyan = "#17becf"
     forecast_color = "#7fafcf"
@@ -1072,8 +1118,8 @@ def build_dataset_json(key, df, logger_overrides=None):
         ts_ms = [int(t.timestamp() * 1000) for t in ldf.index]
         entry = {
             "timestamps":  ts_ms,
-            "temperature": ldf["temperature"].round(2).tolist(),
-            "humidity":    ldf["humidity"].round(2).tolist(),
+            "temperature": json_values(ldf["temperature"]),
+            "humidity":    json_values(ldf["humidity"]),
         }
 
         # Adaptive comfort running mean for THIS logger
@@ -5112,7 +5158,7 @@ function renderLineGraph() {
       const isExtTT = extSet.has(loggerId) && m.loggerSources[loggerId] === 'TinyTag';
       const name = namePrefix + ln(loggerId) + (isExtTT ? ' <span style="color:#aaa">(TinyTag)</span>' : '');
       const source = m.loggerSources[loggerId] || '';
-      const idLabel = (loggerId === 'govee' || isOpenMeteo(loggerId)) ? '' : ` · ID: ${loggerId}`;
+      const idLabel = (loggerId === 'govee' || isOpenMeteo(loggerId)) ? '' : ` · ID: ${loggerId.replace(/_surface$/, '')}`;
       const freqLabel = state.historicMode
         ? (isOpenMeteo(loggerId) ? ' <span style="color:#aaa">(hourly avg.)</span>'
           : source === 'TinyTag' ? ' <span style="color:#aaa">(hourly avg.)</span>'
@@ -5131,6 +5177,8 @@ function renderLineGraph() {
         let firstMetric = true;
         for (const metric of ['temperature','humidity']) {
           if (!state.selectedMetrics.has(metric)) continue;
+          // Temperature-only series (surface probes) carry no humidity: draw no empty trace
+          if (!filtered[metric].some(v => v != null)) continue;
           const {x, y} = buildGapArrays(filtered.timestamps, filtered[metric]);
           for (const v of y) { if (v != null) { if (v < yMin) yMin = v; if (v > yMax) yMax = v; } }
           const unit = metric === 'temperature' ? '°C' : '%RH';
@@ -5199,6 +5247,8 @@ function renderLineGraph() {
           const lgGroup = iter.setLabel ? 'compare_s' + iter.setIndex : 'cross_' + otherKey + '_' + lid;
           for (const metric of ['temperature','humidity']) {
             if (!state.selectedMetrics.has(metric)) continue;
+            // Temperature-only series (surface probes) carry no humidity: draw no empty trace
+            if (!filtered[metric].some(v => v != null)) continue;
             const {x, y} = buildGapArrays(filtered.timestamps, filtered[metric]);
             for (const v of y) { if (v != null) { if (v < yMin) yMin = v; if (v > yMax) yMax = v; } }
             const unit = metric === 'temperature' ? '\u00b0C' : '%RH';
@@ -7203,7 +7253,7 @@ function renderPeriodicAverages() {
       const source = m.loggerSources[loggerId] || '';
       const isExtTT = extSet.has(loggerId) && source === 'TinyTag';
       const logName = namePrefix + ln(loggerId) + (isExtTT ? ' <span style="color:#aaa">(TinyTag)</span>' : '');
-      const idLabel = (loggerId === 'govee' || isOpenMeteo(loggerId)) ? '' : ' \u00b7 ID: ' + loggerId;
+      const idLabel = (loggerId === 'govee' || isOpenMeteo(loggerId)) ? '' : ' \u00b7 ID: ' + loggerId.replace(/_surface$/, '');
       const lgGroup = iter.setLabel ? 'compare_s' + iter.setIndex : loggerId;
       let firstMetric = true;
       const _wbAnnotation = doWb ? ' <span style="color:#aaa">+ ' + t('wetBulbSuffix') + '</span>' : '';
@@ -7737,8 +7787,8 @@ def save_sensor_snapshot(datasets_dfs):
         for logger_id, ldf in sensor_df.groupby("logger_id"):
             loggers[logger_id] = {
                 "timestamps": [t.isoformat() for t in ldf.index],
-                "temperature": ldf["temperature"].round(2).tolist(),
-                "humidity": ldf["humidity"].round(2).tolist(),
+                "temperature": json_values(ldf["temperature"]),
+                "humidity": json_values(ldf["humidity"]),
             }
         snapshot[key] = {"loggers": loggers}
     SNAPSHOT_PATH.write_text(json.dumps(snapshot, separators=(",", ":")), encoding="utf-8")
@@ -7936,7 +7986,7 @@ def main():
                 df = pd.concat([df, filtered_ext]).sort_index()
             # If fresh Omnisense available, replace snapshot Omnisense for house5
             if key == "house5" and not omnisense_df.empty:
-                df = df[~df["logger_id"].isin(OMNISENSE_T_H_SENSORS)]
+                df = df[~df["logger_id"].isin(OMNISENSE_SERIES_IDS)]
                 df = pd.concat([df, omnisense_df]).sort_index()
             # Exclude loggers not belonging to this dataset
             exclude = cfg.get("exclude_loggers", set())
