@@ -1101,9 +1101,9 @@ def build_dataset_json(key, df, logger_overrides=None):
     available_months = sorted({(int(y), int(m)) for y, m in zip(df.index.year, df.index.month)})
     available_weeks  = sorted({(int(y), int(w)) for y, w in zip(df["iso_year"], df["iso_week"])})
     available_days   = sorted(df.index.normalize().unique())
-    # Tanzanian seasons: 0=Kiangazi(Jan-Feb), 1=Masika(Mar-May), 2=Kiangazi(Jun-Oct), 3=Vuli(Nov-Dec)
-    _tz_season_idx = [0,0,1,1,1,2,2,2,2,2,3,3]
-    _tz_season_names = ['Kiangazi (Jan-Feb)','Masika (Mar-May)','Kiangazi (Jun-Oct)','Vuli (Nov-Dec)']
+    # Tanzanian seasons (Kisemvule, agreed 20-11-2026): 0=Kiangazi(Jan-Feb), 1=Masika(Mar-May), 2=Kipupwe(Jun-Sep), 3=Vuli(Oct-Dec)
+    _tz_season_idx = [0,0,1,1,1,2,2,2,2,3,3,3]
+    _tz_season_names = ['Kiangazi (Jan-Feb)','Masika (Mar-May)','Kipupwe (Jun-Sep)','Vuli (Oct-Dec)']
     available_seasons = sorted({(int(y), _tz_season_idx[int(m)-1]) for y, m in zip(df.index.year, df.index.month)})
 
     series = {}
@@ -2294,7 +2294,7 @@ function dataset() { return ALL_DATA[state.datasetKey]; }
 // ── Substratification (Advanced Filtering) ────────────────────────────────────
 let _substratIdCounter = 0;
 
-const TZ_SEASON_IDX_GLOBAL = [0,0,1,1,1,2,2,2,2,2,3,3];
+const TZ_SEASON_IDX_GLOBAL = [0,0,1,1,1,2,2,2,2,3,3,3];
 
 function toggleAdvancedSettings() {
   const body = document.getElementById('advanced-settings-body');
@@ -2457,7 +2457,7 @@ function substratBuildOptions(cycle, gran) {
     for (let d = 1; d <= 31; d++) html += '<option value="' + d + '">' + d + '</option>';
     defaultVal = 1; lastVal = 31;
   } else if (cycle === 'year' && gran === 'season') {
-    const sLabels = ['Kiangazi (Jan-Feb)', 'Masika (Mar-May)', 'Kiangazi (Jun-Oct)', 'Vuli (Nov-Dec)'];
+    const sLabels = ['Kiangazi (Jan-Feb)', 'Masika (Mar-May)', 'Kipupwe (Jun-Sep)', 'Vuli (Oct-Dec)'];
     for (let s = 0; s < 4; s++) html += '<option value="' + s + '">' + sLabels[s] + '</option>';
     defaultVal = 0; lastVal = 3;
   }
@@ -3098,7 +3098,7 @@ function describeFilters(filters) {
   if (!filters || filters.length === 0) return '';
   const synLabels = ['Late Night (00-06)', 'Morning (06-12)', 'Afternoon (12-18)', 'Evening (18-00)'];
   const monthLabels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const seasonLabels = ['Kiangazi (Jan-Feb)', 'Masika (Mar-May)', 'Kiangazi (Jun-Oct)', 'Vuli (Nov-Dec)'];
+  const seasonLabels = ['Kiangazi (Jan-Feb)', 'Masika (Mar-May)', 'Kipupwe (Jun-Sep)', 'Vuli (Oct-Dec)'];
   const parts = [];
   for (const f of filters) {
     if (f.cycle === 'none') continue;
@@ -4671,7 +4671,7 @@ function downloadChartPng() {
     switch (state.timeMode) {
       case 'between': rangeStr = `${fmtDate(state.betweenStart||m.dateRange.min)}_to_${fmtDate(state.betweenEnd||m.dateRange.max)}`; break;
       case 'year': rangeStr = `${state.selectedYear}`; break;
-      case 'season': if (state.selectedSeason) { const sn = ['Kiangazi-JanFeb','Masika-MarMay','Kiangazi-JunOct','Vuli-NovDec'][state.selectedSeason.season]; rangeStr = `${state.selectedSeason.year}-${sn}`; } break;
+      case 'season': if (state.selectedSeason) { const sn = ['Kiangazi-JanFeb','Masika-MarMay','Kipupwe-JunSep','Vuli-OctDec'][state.selectedSeason.season]; rangeStr = `${state.selectedSeason.year}-${sn}`; } break;
       case 'month': if (state.selectedMonth) rangeStr = `${state.selectedMonth.year}-${String(state.selectedMonth.month).padStart(2,'0')}`; break;
       case 'week': if (state.selectedWeek) rangeStr = `${state.selectedWeek.year}-W${String(state.selectedWeek.week).padStart(2,'0')}`; break;
       case 'day': if (state.selectedDay) rangeStr = fmtDate(state.selectedDay); break;
@@ -4984,7 +4984,7 @@ function getTimeRange() {
     case 'season': {
       if (!state.selectedSeason) return {start: min, end: max};
       const {year: y, season: si} = state.selectedSeason;
-      const sm = [[0,1],[2,4],[5,9],[10,11]][si];
+      const sm = [[0,1],[2,4],[5,8],[9,11]][si];
       return {start: Date.UTC(y, sm[0], 1), end: Date.UTC(y, sm[1]+1, 0, 23, 59, 59, 999)};
     }
     case 'month': {
@@ -5070,8 +5070,8 @@ function buildGapArrays(timestamps, values) {
 
 // ── Season lines ──────────────────────────────────────────────────────────────
 const SEASONS = [
-  {month:6,  day:1, name:'June Dry Season (Kiangazi)'},
-  {month:11, day:1, name:'Short Rains (Vuli)'},
+  {month:6,  day:1, name:'Cool Season (Kipupwe)'},
+  {month:10, day:1, name:'Short Rains (Vuli)'},
   {month:1,  day:1, name:'January Dry Season (Kiangazi)'},
   {month:3,  day:1, name:'Long Rains (Masika)'},
 ];
@@ -6183,7 +6183,7 @@ function gapTooltipHTML(gaps, rangeStartMs, rangeEndMs) {
 function periodRangeMs(gran, info) {
   if (gran === 'year') return {s: Date.UTC(info.y, 0, 1), e: Date.UTC(info.y, 11, 31, 23, 59, 59, 999)};
   if (gran === 'season') {
-    const sm = [[0,1],[2,4],[5,9],[10,11]][info.si];
+    const sm = [[0,1],[2,4],[5,8],[9,11]][info.si];
     return {s: Date.UTC(info.y, sm[0], 1), e: Date.UTC(info.y, sm[1]+1, 0, 23, 59, 59, 999)};
   }
   if (gran === 'month') return {s: Date.UTC(info.y, info.m-1, 1), e: Date.UTC(info.y, info.m, 0, 23, 59, 59, 999)};
@@ -6215,7 +6215,7 @@ function _searchCompletePeriods(tsArrays, rangeStart, rangeEnd) {
     if (allOK(r.s, r.e)) { results.push({label: String(y), gran: 'year', y, fi: ol/(r.e-r.s) >= 0.99}); found = true; }
   }
   if (!found) {
-    const SN = ['Kiangazi (Jan-Feb)','Masika (Mar-May)','Kiangazi (Jun-Oct)','Vuli (Nov-Dec)'];
+    const SN = ['Kiangazi (Jan-Feb)','Masika (Mar-May)','Kipupwe (Jun-Sep)','Vuli (Oct-Dec)'];
     for (const as of (m.availableSeasons || [])) {
       const r = periodRangeMs('season', {y: as.year, si: as.season});
       if (r.s > rangeEnd || r.e < rangeStart) continue;
@@ -7075,9 +7075,9 @@ function renderPeriodicAverages() {
   const pr = state.periodCycle, pg = state.periodGroupBy;
 
   // Tanzanian seasons: month → season index
-  // 0=Kiangazi (Jan-Feb), 1=Masika (Mar-May), 2=Kiangazi (Jun-Oct), 3=Vuli (Nov-Dec)
-  const TZ_SEASON_IDX  = [0,0,1,1,1,2,2,2,2,2,3,3]; // indexed by month 0-11
-  const TZ_SEASON_LABELS = ['Kiangazi (Jan-Feb)','Masika (Mar-May)','Kiangazi (Jun-Oct)','Vuli (Nov-Dec)'];
+  // 0=Kiangazi (Jan-Feb), 1=Masika (Mar-May), 2=Kipupwe (Jun-Sep), 3=Vuli (Oct-Dec)
+  const TZ_SEASON_IDX  = [0,0,1,1,1,2,2,2,2,3,3,3]; // indexed by month 0-11
+  const TZ_SEASON_LABELS = ['Kiangazi (Jan-Feb)','Masika (Mar-May)','Kipupwe (Jun-Sep)','Vuli (Oct-Dec)'];
 
   let nCats, categoryLabels, getCategoryIdx;
   // xPositions: numeric positions for each category on x-axis (null = use categoryLabels as-is on category axis)
@@ -7124,8 +7124,8 @@ function renderPeriodicAverages() {
     // Seasons positioned at temporal midpoints on a month-scale linear axis
     nCats = 4;
     categoryLabels = TZ_SEASON_LABELS;
-    // Midpoints in month-units: Kiangazi Jan-Feb=0.5, Masika Mar-May=3, Kiangazi Jun-Oct=7, Vuli Nov-Dec=10.5
-    xPositions = [0.5, 3, 7, 10.5];
+    // Midpoints in month-units: Kiangazi Jan-Feb=0.5, Masika Mar-May=3, Kipupwe Jun-Sep=6.5, Vuli Oct-Dec=10
+    xPositions = [0.5, 3, 6.5, 10];
     getCategoryIdx = ms => TZ_SEASON_IDX[eatDate(ms).getUTCMonth()];
   } else if (pr === 'mjo') {
     nCats = 8;
@@ -7395,7 +7395,7 @@ function renderPeriodicAverages() {
   // Season boundary lines for year cycle (all sub-groupings)
   const shapes = [], annotations = [];
   if (pr === 'year' && state.showSeasonLines) {
-    const seasonBounds = [{ci:0, name:'Kiangazi'},{ci:2, name:'Masika'},{ci:5, name:'Kiangazi'},{ci:10, name:'Vuli'}];
+    const seasonBounds = [{ci:0, name:'Kiangazi'},{ci:2, name:'Masika'},{ci:5, name:'Kipupwe'},{ci:9, name:'Vuli'}];
     seasonBounds.forEach(s => {
       // Convert month index to x position based on grouping
       let xPos;
